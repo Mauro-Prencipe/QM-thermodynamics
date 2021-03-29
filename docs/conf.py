@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'BM3-thermal'
+project = 'QM-Thermodynamics'
 copyright = '2021, Mauro Prencipe'
 author = 'Mauro Prencipe'
 
