@@ -30,8 +30,6 @@ EoS (V_BM3). Results of the fitting are then used to compute all the possibles p
 The program can be loaded and run in a `Spyder environment <https://www.spyder-ide.org>`_ or in other IPython consoles
 which are able to display graphical output. 
 
-.. image:: _images/spyder_image.png
-
 `Jupyter Notebooks <https://jupyter.org/>`_ or Jupyter Labs are convenient environments, too. 
  
 Other than the local PC, Jupyter Notebooks can also be viewed by using the `viewer <https://nbviewer.jupyter.org/>`_
