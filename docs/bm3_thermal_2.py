@@ -5,7 +5,7 @@
 
 import datetime
 
-from IPython import get_ipython
+# from IPython import get_ipython
 
 # get_ipython().magic('cls')
 # get_ipython().magic('reset -sf')
