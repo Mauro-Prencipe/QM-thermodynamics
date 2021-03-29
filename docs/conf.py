@@ -12,7 +12,6 @@
 #
 import os
 import sys
-import parame
 sys.path.insert(0, os.path.abspath('.'))
 
 
