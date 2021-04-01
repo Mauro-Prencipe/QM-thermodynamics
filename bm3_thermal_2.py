@@ -5,7 +5,7 @@
 
 import datetime
 
-from IPython import get_ipython
+# from IPython import get_ipython
 
 # get_ipython().magic('cls')
 # get_ipython().magic('reset -sf')
@@ -32,7 +32,7 @@ from mineral_data import mineral, load_database, equilib, reaction,\
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
      mao, fmao
     
-# import_database()
+import_database()
 
 mpl.rcParams['figure.dpi']= 80
 
@@ -243,9 +243,6 @@ class exclude_class():
         add(n1): n1 integer --> adds mode n1 to the list
         add([n1, n2, ...]): n1, n2... integers --> 
                                 adds n1, n2, ... to the list
-                                
-                                
-        
     """
     def __init__(self):
         self.ex_mode=[]
@@ -397,27 +394,27 @@ class bm4_class():
     Set up and information for a 4^ order Birch-Murnaghan EoS (BM4)
     
     It provides:
-    ...
-    
-    energy function 
-         Volume integrated BM4 (V-BM4)
-    pressure function 
-          BM4            
-    bm4_static_eos 
-         BM4 parameters for the static energy calculation as a function of V
-    en_ini   
-         initial values for the BM4 fit
-    bm4_store    
-         BM4 parameters from a fitting at a given temperature
+        energy:   function; Volume integrated BM4 (V-BM4)
+        pressure: function; BM4        
+        bm4_static_eos: BM4 parameters for the static energy
+                        calculation as a function of V
+        en_ini:         initial values for the BM4 fit
+        bm4_store:      BM4 parameters from a fitting at a given
+                        temperature
                         
     methods:
-    estimates(): estimates initial values of BM4 parameters for the fit
-    store():     stores BM4 parameters from a fit a given temperature
-    upgrade():   uses the stored values of parameters [from the application of store()] to upgrade the initial estimation done with estimates()
-    upload():    loads the parameters from the static calculation (that are then stored in bm4_static_eos)                     
-    on():        Switches on the BM4 calculation
-    off():       switches off the BM4 calculation        
-    status():    informs on the status of BM4 (on, or off)          
+        estimates(): estimates initial values of BM4 parameters
+                     for the fit
+        store():     stores BM4 parameters from a fit a given 
+                     temperature
+        upgrade():   uses the stored values of parameters [from
+                     the application of store()] to upgrade the 
+                     initial estimation done with estimates()
+        upload():    loads the parameters from the static calculation
+                     (that are then stored in bm4_static_eos)                     
+        on():        Switches on the BM4 calculation
+        off():       switches off the BM4 calculation        
+        status():    informs on the status of BM4 (on, or off)  
     """
     def __init__(self):
         self.flag=False
@@ -582,6 +579,9 @@ class  static_class():
         self.flag=False 
         
 class volume_control_class():
+    """
+    Defines suitable parameters for the volume_dir function
+    """
     def __init__(self):
         self.degree=2
         self.delta=2.
@@ -591,6 +591,19 @@ class volume_control_class():
         self.kp_fix=False
         self.debug=False
     def set_degree(self, degree):
+        """
+        Sets the degree of polynomial used to fit the (P(V)-P0)^2 data. 
+        The fitted curve is the minimized to get the equilibrium volume
+        at each T and P. 
+
+        Args:
+            degree : degree of the polynomial (default: 2).
+                     If degree > 2, the minimum of the curve is found
+                        by a numerical method (function minimize).
+                     This can result in numerical instabilities.
+                     If degree=2, the minimum is analytically computed 
+                        This is the recommended option
+        """
         self.degree=degree
     def set_delta(self, delta):
         self.delta=delta
