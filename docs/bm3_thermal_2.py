@@ -590,6 +590,7 @@ class volume_control_class():
         self.quad_shrink=4
         self.kp_fix=False
         self.debug=False
+        self.upgrade_shift=False
     def set_degree(self, degree):
         """
         Sets the degree of polynomial used to fit the (P(V)-P0)^2 data. 
@@ -597,12 +598,12 @@ class volume_control_class():
         at each T and P. 
 
         Args:
-            degree : degree of the polynomial (default: 2).
+            degree:  degree of the polynomial (default: 2).
                      If degree > 2, the minimum of the curve is found
-                        by a numerical method (function minimize).
+                     by a numerical method (function minimize).
                      This can result in numerical instabilities.
                      If degree=2, the minimum is analytically computed 
-                        This is the recommended option
+                     This is the recommended option
         """
         self.degree=degree
     def set_delta(self, delta):
@@ -621,7 +622,35 @@ class volume_control_class():
     def debug_off(self):
         self.debug=False
     def set_all(self,degree=2, delta=2., skew=1., shift=0., t_max=500.,\
-                quad_shrink=4, kp_fix=True, debug=False):
+                quad_shrink=4, kp_fix=True, upgrade_shift=False, debug=False):
+        """
+        Used to set the values of all the attributes of the class.
+
+        Args:
+            degree: degree of the fitting polynomial (default=2)
+            delta:  volume range where the minimum of the fitting function
+                    is to be searched (default=2.)
+            skew:   the Volume range is centered around the equilibrium
+                    volume approximated by the EoS-based new_volume function
+                    The symmetry around such point can be controlled by
+                    the skew parameter (default=1.: symmetric interval)
+            shift:  Systematic shift from the new_volume estimation (default=0.) 
+            t_max:  In the initial estimation of the volume at P/T with the EoS-based
+                    new_volume function, the Kp is refined if T < t_max. 
+                    If T > t_max and kp_fix=True, Kp is fixed at the value
+                    refined at t_max (default=500K)
+            kp_fix: See t_max (default=True)
+            quad_shrink: if degree=2, it restricts the volume range around the 
+                         approximated volume found. The new range is 
+                         delta/quad_shrink (default=4)
+            upgrade_shift: at the end of the computation, the difference between
+                           the volume found and the initial one (from the EoS-
+                           based new_volume function) is calculated. The shift
+                           attribute is then upgraded if upgrade_shift is True
+                           (default=False)
+            debug:  if True, the (P(V)-P0)**2 function is plotted as a function
+                    of V (default=False)                         
+        """
         self.degree=degree
         self.delta=delta
         self.t_max=t_max
@@ -1870,7 +1899,8 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
        vmin=-1*der_new[1]/der_new[0] 
        shift=v_new-vmin
 
-    volume_ctrl.shift=shift        
+    if volume_ctrl.upgrade_shift:
+       volume_ctrl.shift=shift        
  
     if volume_ctrl.degree > 2:
        if volume_ctrl.debug:
@@ -4564,9 +4594,10 @@ def temperature_freq(ifr,freq, tmin, tmax, npt, pp,degree=2,**kwargs):
                            values from the pressure_freq_list function
         
     **kwargs: 
-        fix: Kp fixed, if fix=Kp > 0.1
+            fix: Kp fixed, if fix=Kp > 0.1
         
-    Note: it is advised to keep Kp fixed by either specifying fix, or
+    Note: 
+        it is advised to keep Kp fixed by either specifying fix, or
           by using set_fix.
           For "noisy" modes, use polynomial fits (set_poly), or 
           a spline fit (set_spline) with a large smooth parameter.
