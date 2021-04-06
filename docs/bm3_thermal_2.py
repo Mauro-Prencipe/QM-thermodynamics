@@ -1578,13 +1578,14 @@ def bmx_tem(tt,**kwargs):
         tt: temperature
         
     Kwargs: 
-        fix: if fix > 0.1, kp is fixed to the value 'fix'
-             during the optimization of the EoS.
-             (this is a valid option only for the BM3 fit,
-             but it is ignored for a BM4 EoS)
+          fix: if fix > 0.1, kp is fixed to the value 'fix'
+          during the optimization of the EoS.
+          (this is a valid option only for the BM3 fit,
+          but it is ignored for a BM4 EoS)
              
     Output:
-        3 arrays:
+          3 arrays:
+              
             1. free energy values at the volumes used for the fit
             2. optimized v0, k0, kp, (kpp), and c
             3. covariance matrix
