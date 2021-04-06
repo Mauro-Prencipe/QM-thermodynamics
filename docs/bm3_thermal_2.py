@@ -394,10 +394,10 @@ class bm4_class():
         1.  energy:      function; Volume integrated BM4 (V-BM4)
         2.  pressure:    function; BM4        
         3.  bm4_static_eos: BM4 parameters for the static energy
-                            calculation as a function of V
+            calculation as a function of V
         4.  en_ini:     initial values for the BM4 fit
         5.  bm4_store:  BM4 parameters from a fitting at a given
-                        temperature
+            temperature
                         
     methods:                    
     """
@@ -1576,26 +1576,27 @@ def bmx_tem(tt,**kwargs):
     
     Args:
         tt: temperature
-    
-    kwargs:
+        
+    Kwargs: 
         fix: if fix > 0.1, kp is fixed to the value 'fix'
              during the optimization of the EoS.
              (this is a valid option only for the BM3 fit,
-              but it is ignored for a BM4 EoS)
+             but it is ignored for a BM4 EoS)
              
     Output:
         3 arrays:
-            free energy values at the volumes used for the fit
-            optimized v0, k0, kp, (kpp), and c
-            covariance matrix
+            1. free energy values at the volumes used for the fit
+            2. optimized v0, k0, kp, (kpp), and c
+            3. covariance matrix
              
-    Note: bmx_tem optimizes the EoS according to several 
-          possible options specified elsewhere:
+    Note: 
+        bmx_tem optimizes the EoS according to several 
+        possible options specified elsewhere:
               
-           1) kp fixed of free
-           2) frequencies not fitted, or fitted by
+           1. kp fixed of free
+           2. frequencies not fitted, or fitted by
               polynomials or splines
-           3) 3^rd or 4^th order BM EoS          
+           3. 3^rd or 4^th order BM EoS          
     """
     l_arg=list(kwargs.items())
     fixpar=False
