@@ -1585,18 +1585,17 @@ def bmx_tem(tt,**kwargs):
              
    Returns:
         3 arrays:            
-        1. free energy values at the volumes used for the fit
-        2. optimized v0, k0, kp, (kpp), and c
-        3. covariance matrix
+            1. free energy values at the volumes used for the fit
+            2. optimized v0, k0, kp, (kpp), and c
+            3. covariance matrix
              
-    Note: 
+    Notes: 
         bmx_tem optimizes the EoS according to several 
         possible options specified elsewhere:
               
-        1. kp fixed of free
-        2. frequencies not fitted, or fitted by
-              polynomials or splines
-        3. 3^rd or 4^th order BM EoS          
+            1. kp fixed of free
+            2. frequencies not fitted, or fitted by polynomials or splines
+            3. 3^rd or 4^th order BM EoS          
     """
     l_arg=list(kwargs.items())
     fixpar=False
