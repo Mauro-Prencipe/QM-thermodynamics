@@ -233,10 +233,6 @@ class exclude_class():
     calculation of the Helmholtz free energy.
     It can be constructed by using the keyword EXCLUDE
     in the input.txt file.
-    
-    methods:     
-        add(modes) : adds "modes" to the list; 
-        restore() : resets the content of the list
     """
     def __init__(self):
         self.ex_mode=[]
@@ -247,7 +243,7 @@ class exclude_class():
     def add(self,modes):
         """
         Args:
-            n : can be a scalar or a list of mode to be excluded
+            n : can be a scalar or a list of modes to be excluded
         """
         if type(modes) is list:
            self.ex_mode.extend(modes)
@@ -259,6 +255,9 @@ class exclude_class():
             print("** Warning ** exclude.add(): invalid input type")
             return
     def restore(self):
+        """
+        Restores all the excluded modes
+        """
         if self.flag:
            self.ex_mode_keep=self.ex_mode
         self.ex_mode=[]
@@ -392,27 +391,15 @@ class bm4_class():
     Set up and information for a 4^ order Birch-Murnaghan EoS (BM4)
     
     It provides:
-        energy:   function; Volume integrated BM4 (V-BM4)
-        pressure: function; BM4        
-        bm4_static_eos: BM4 parameters for the static energy
-                        calculation as a function of V
-        en_ini:         initial values for the BM4 fit
-        bm4_store:      BM4 parameters from a fitting at a given
+        1.  energy:      function; Volume integrated BM4 (V-BM4)
+        2.  pressure:    function; BM4        
+        3.  bm4_static_eos: BM4 parameters for the static energy
+                            calculation as a function of V
+        4.  en_ini:     initial values for the BM4 fit
+        5.  bm4_store:  BM4 parameters from a fitting at a given
                         temperature
                         
-    methods:
-        estimates(): estimates initial values of BM4 parameters
-                     for the fit
-        store():     stores BM4 parameters from a fit a given 
-                     temperature
-        upgrade():   uses the stored values of parameters [from
-                     the application of store()] to upgrade the 
-                     initial estimation done with estimates()
-        upload():    loads the parameters from the static calculation
-                     (that are then stored in bm4_static_eos)                     
-        on():        Switches on the BM4 calculation
-        off():       switches off the BM4 calculation        
-        status():    informs on the status of BM4 (on, or off)  
+    methods:                    
     """
     def __init__(self):
         self.flag=False
@@ -425,11 +412,17 @@ class bm4_class():
     def __str__(self):
         return "BM4 setting: " + str(self.flag)
     def on(self):
+        """
+        Switches on the BM4 calculation
+        """
         self.flag=True
         if self.start:
            self.energy, self.pressure=bm4_def()
            self.start=False
     def estimates(self,v4,e4):
+        """
+        Estimates initial values of BM4 parameters for the fit
+        """
         ini=init_bm4(v4,e4,4.0)
         new_ini,dum=curve_fit(v_bm3, v4, e4, \
              p0=ini,ftol=1e-15,xtol=1e-15)
@@ -445,14 +438,31 @@ class bm4_class():
         print("Kpp: %6.2f" % self.en_ini[3])
         print("E0:   %8.6e" % self.en_ini[4])
     def store(self,bm4st):
+        """
+        Stores BM4 parameters from a fit a given temperature
+        """        
         self.bm4_store=bm4st
     def upload(self,bm4_eos):
+        """
+        Loads the parameters from the static calculation
+        (that are then stored in bm4_static_eos) 
+        """
         self.bm4_static_eos=bm4_eos
     def upgrade(self):
+        """
+        Uses the stored values of parameters [from the application of 
+        store()] to upgrade the initial estimation done with estimates()
+        """
         self.en_ini=self.bm4_store
     def off(self):
+        """
+        Switches off the BM4 calculation
+        """
         self.flag=False   
     def status(self):
+        """
+        Informs on the status of BM4 (on, or off) 
+        """
         print("\nBM4 setting: %s " % self.flag)
         
 class gamma_class():
