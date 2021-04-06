@@ -1560,7 +1560,7 @@ def bm3(vv,v0,k0,kp):
         k0: bulk modulus
         kp: derivative of k0 with respect to P
         
-    Outputs:
+    Returns:
         the pressure at the volume vv    
     """
     v0v7=np.abs((v0/vv))**(7/3)
@@ -1592,7 +1592,7 @@ def bmx_tem(tt,**kwargs):
         bmx_tem optimizes the EoS according to several 
         possible options specified elsewhere:
               
-            1. kp fixed of free
+            1. kp fixed or free
             2. frequencies not fitted, or fitted by polynomials or splines
             3. 3^rd or 4^th order BM EoS          
     """
@@ -1756,7 +1756,8 @@ def init_bm3(vv,en):
 # Kp can be kept fixed (by setting fix=Kp > 0.1)
 def pressure(tt,vv,**kwargs):
     """
-    Computes the pressure at a temperature and volume
+    Computes the pressure at a temperature and volume from an optimized
+    EoS at the given temperature.
     
     Args:
         tt:  temperature
@@ -1782,6 +1783,14 @@ def pressure(tt,vv,**kwargs):
        return round(bm3(vv,*eos)*conv/1e-21,3)
 
 def pressure_dir(tt,vv):
+    """
+    Computes the pressure at a given volume and pressure directly as 
+    the volume derivative of the Helmholtz free energy (at constant temperature)
+    
+    Args: 
+        tt: temperature
+        vv: volume
+    """
     
     deg=pr.degree_v
     
@@ -1821,6 +1830,12 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
     values are already set by default, but can be changed by using
     the method volume_ctrl.set_all. Use the info.show method to get such
     values under the 'volume driver section'.
+    
+    Args:
+        tt: temperature
+        pp: pressure
+        alpha_flag_1, alpha_flag_2: flags used by the alpha_dir function
+                                    (default=False)
     """  
     vol_opt.on()
     
@@ -2025,9 +2040,8 @@ def bulk_dir(tt,prt=False,**kwargs):
         tt: temperature
         prt (optional): if True, prints a P(V) list; default: False
         
-    **kwargs:
-        fix: Kp fixed, if fix=Kp > 0.1 
-        
+    Keyword Args:
+        fix: Kp fixed, if fix=Kp > 0.1    
     """
     
     flag_volume_max.value=False
@@ -2339,6 +2353,31 @@ def bulk_modulus_p(tt,pp,noeos=False,prt=False,**kwargs):
 
 def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='poly', \
                          deg=2, smooth=5, out=False, **kwargs):
+    
+    """
+    Computes the bulk modulus, in a specified T range, from the definition
+    K=-V(dP/dV)_T 
+    
+    Args:
+        tini: initial temperature
+        tfin: final temperature
+        nt: number of T points in the range
+        pres: pressure
+        noeos: if False, the P(V) curve is from an EoS; if True, the vibrational 
+               pressure is computed from the derivative of the Helmoltz function
+               (Default=False; see the documentation of the bulk_modulus_p function)
+        fit: if True, the K(T) curve is fitted by a polynomial or spline function
+             according to the 'type' input parameter (default=False)
+        type: fitting function used to interpolate the K(T) points; polynomial
+              function (type='poly', default); spline function (type='spline')
+        deg: degree of the fitting function (default=2)
+        smooth: used for 'spline' fitting only 
+        out: if True, the parameters of the fitting function are returned
+             (default=False)
+             
+    Keyword Args:
+        fix: if > 0. and noeos=False, Kp=fix is fixed       
+    """
 
     l_arg=list(kwargs.items())
     fixpar=False
@@ -5515,14 +5554,15 @@ def helm_anharm_func(mode,vv,tt):
 def anharm_pressure_vt(mode,vv,tt,deg=2,dv=2,prt=True):
     """
     Pressure (GPa) of a single anharmonic mode at a given cell volume and 
-    temperature from the derivative -(dF/dV)_T
+    temperature, computed from the derivative -(dF/dV)_T
     
-    mode: mode number (a number in the list [0,..., anharm.nmode])
-    vv:   volume (A^3)
-    tt:   temperature (K)
-    deg:  degree of the polynomial fitting the F(V) function (default: 2)
-    dv:   V range (A^3) for the calculation of the F(V) function (default: 2)
-    prt:  print formatted result (default: True)
+    Args:
+        mode: mode number (a number in the list [0,..., anharm.nmode])
+        vv:   volume (A^3)
+        tt:   temperature (K)
+        deg:  degree of the polynomial fitting the F(V) function (default: 2)
+        dv:   V range (A^3) for the calculation of the F(V) function (default: 2)
+        prt:  print formatted result (default: True)
     """
     
     if not anharm.flag:
@@ -5555,15 +5595,15 @@ def anharm_pressure(mode,tmin,tmax,nt,deg=2,dv=2,fit=True, fit_deg=4, prt=True):
     """
     Pressure (GPa) of an anharmonic mode in a given T range
     
-    mode:     mode number (a number in the list [0,..., anharm.nmode])
-    tmin:     minimum temperature
-    tmax:     maximum temperature
-    nt:       number of points in the T interval
-    deg, dv:  see doc for anharm_pressure_vt
-    fit:      polynomial fit of the P(T) values
-    fit_deg:  degree of the fitting polynomial
-    prt:      if True, prints a list of T, V, P values
-    
+    Args:
+        mode:     mode number (a number in the list [0,..., anharm.nmode])
+        tmin:     minimum temperature
+        tmax:     maximum temperature
+        nt:       number of points in the T interval
+        deg, dv:  see doc for anharm_pressure_vt
+        fit:      polynomial fit of the P(T) values
+        fit_deg:  degree of the fitting polynomial
+        prt:      if True, prints a list of T, V, P values
     """
     
     if not anharm.flag:
