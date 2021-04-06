@@ -2951,15 +2951,15 @@ def entropy_p(tt,pp,plot=False,prt=True,**kwargs):
                          possible numerical instabilities
         prt (optional):  (default True) prints formatted output
          
-    **kwargs: 
+    Keyword Args: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized. 
              
-    Output:
-        if prt=False outputs the entropy (J/mol K);
-        if prt=True (default), a formatted output is printed and the 
-        function returns None
+    Returns:
+        1. if prt=False outputs the entropy (J/mol K);
+        2. if prt=True (default), a formatted output is printed and the 
+           function returns None
     """ 
     
     l_arg=list(kwargs.items())
@@ -3332,8 +3332,9 @@ def cp(tt,pp,plot=False,prt=False,dul=False,**kwargs):
                          (experts only)
         prt (optional): prints formatted results
         
-    Notes: Cp = Cv + V*T*K*alpha^2
-           Cp, Cv (J/mol K), Cp/Cv, alpha (K^-1), K=K0+K'P (GPa) 
+    Notes: 
+        Cp = Cv + V*T*K*alpha^2
+        Cp, Cv (J/mol K), Cp/Cv, alpha (K^-1), K=K0+K'P (GPa) 
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -3526,13 +3527,14 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
                                  specified
         dpi (optional): dpi resolution of the saved image
         
-    Note: to output the coefficients of the fit, prt must be set to
-          False
+    Note: 
+        to output the coefficients of the fit, prt must be set to
+        False
           
-          The optional argument plot (default: False) is for checking
-          possible numerical issues
+        The optional argument plot (default: False) is for checking
+        possible numerical issues
           
-          It is advised to keep Kp fixed during the computation
+        It is advised to keep Kp fixed during the computation
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4490,11 +4492,11 @@ def check_spline_list(list_of_modes):
     of volumes, along with their fitting according to the spline
     parameters chosen.
     
-    Args: list_of_modes (a list of integers)
+    Args: 
+        list_of_modes (a list of integers)
     
     Example:
-        check_spline_list([0, 1, 2])
-        
+        check_spline_list([0, 1, 2])     
     """
     
     for ifr in list_of_modes:
@@ -4516,11 +4518,11 @@ def check_poly_list(list_of_modes):
     """
     Plots the frequencies of a given list of normal modes
     
-    Args: list_of_modes (a list of integers)
+    Args: 
+        list_of_modes (a list of integers)
     
     Example:
-        check_poly_list([0, 1, 2])
-        
+        check_poly_list([0, 1, 2])      
     """
     
     for ifr in list_of_modes:
@@ -5697,12 +5699,12 @@ def debye(tmin=5.,tmax=300.,nt=24, d_min=50., d_max=1500., nd=48):
     """
     Debye temperature estimation
     
-    tmin: lower limit of the temperature range
-    tmax: higher limit of the temperature range
-    nt:   number of point is the T range
-    
-    d_min, d_max, nd: define the range where the Debye
-                      temperature is to be searched
+    Args:
+        tmin: lower limit of the temperature range
+        tmax: higher limit of the temperature range
+        nt:   number of point is the T range
+        d_min, d_max, nd: define the range where the Debye
+                          temperature is to be searched
     """
     
     if tmin < 5.:
