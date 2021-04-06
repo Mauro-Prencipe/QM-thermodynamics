@@ -1583,13 +1583,12 @@ def bmx_tem(tt,**kwargs):
         (this is a valid option only for the BM3 fit,
         but it is ignored for a BM4 EoS)
              
-   Returns:
-        3 arrays:            
-            1. free energy values at the volumes used for the fit
-            2. optimized v0, k0, kp, (kpp), and c
-            3. covariance matrix
+   Output:         
+        1. free energy values at the volumes used for the fit
+        2. optimized v0, k0, kp, (kpp), and c
+        3. covariance matrix
              
-    Notes: 
+    Note: 
         bmx_tem optimizes the EoS according to several 
         possible options specified elsewhere:
               
