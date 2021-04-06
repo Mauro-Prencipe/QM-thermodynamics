@@ -234,15 +234,9 @@ class exclude_class():
     It can be constructed by using the keyword EXCLUDE
     in the input.txt file.
     
-    There are two methods available:
-        
-        add(modes): adds "modes" to the list; 
-        restore():  resets the content of the list
-        
-    Accepted inputs to add():
-        add(n1): n1 integer --> adds mode n1 to the list
-        add([n1, n2, ...]): n1, n2... integers --> 
-                                adds n1, n2, ... to the list
+    methods:     
+        add(modes) : adds "modes" to the list; 
+        restore() : resets the content of the list
     """
     def __init__(self):
         self.ex_mode=[]
@@ -251,6 +245,10 @@ class exclude_class():
     def __str__(self):
         return "Excluded modes:" + str(self.ex_mode)
     def add(self,modes):
+        """
+        Args:
+            n : can be a scalar or a list of mode to be excluded
+        """
         if type(modes) is list:
            self.ex_mode.extend(modes)
            self.flag=True
