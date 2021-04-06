@@ -1579,11 +1579,11 @@ def bmx_tem(tt,**kwargs):
         
     Keyword Args: 
         fix: if fix > 0.1, kp is fixed to the value 'fix'
-        during the optimization of the EoS.
-        (this is a valid option only for the BM3 fit,
-        but it is ignored for a BM4 EoS)
+             during the optimization of the EoS.
+             (this is a valid option only for the BM3 fit,
+             but it is ignored for a BM4 EoS)
              
-   Output:         
+    Output:         
         1. free energy values at the volumes used for the fit
         2. optimized v0, k0, kp, (kpp), and c
         3. covariance matrix
@@ -1696,15 +1696,16 @@ def init_bm4(vv,en,kp):
     Args:
         vv (list): volumes
         en (list): static energies at the corresponding volumes vv
-        kp:initail value assigned to kp
+        kp:initial value assigned to kp
         
-    Output:
+    Return:
         "ini" list of V-integrated EoS parameters (for a BM3) estimated by a 
         polynomial fit: v_ini, k0_ini, kp, e0_ini. 
         
-    Note: such parameters are used as initial guesses for the BM3 optimization
-    performed by the method "estimates" of the class bm4 that, in turn, 
-    outputs the "ini" list for the BM4 EoS optimization. 
+    Note: 
+        such parameters are used as initial guesses for the BM3 optimization
+        performed by the method "estimates" of the class bm4 that, in turn, 
+        outputs the "ini" list for the BM4 EoS optimization. 
     """
     
     pol=np.polyfit(vv,en,4)
@@ -1729,11 +1730,12 @@ def init_bm3(vv,en):
         vv (list): volumes
         en (list): static energies at the corresponding volumes vv
         
-    Output:
+    Return:
         "ini" list of V-integrated EoS parameters estimated by a 
         polynomial fit: v_ini, k0_ini, kp, e0_ini. kp is set to 4.
         
-    Note: such parameters are used as initial guesses for the bm3 optimization.
+    Note: 
+        such parameters are used as initial guesses for the bm3 optimization.
     """
     kp_ini=4.
     pol=np.polyfit(vv,en,3)
@@ -1819,7 +1821,6 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
     values are already set by default, but can be changed by using
     the method volume_ctrl.set_all. Use the info.show method to get such
     values under the 'volume driver section'.
-
     """  
     vol_opt.on()
     
