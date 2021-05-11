@@ -580,13 +580,38 @@ class anh_class():
         print("Anharmonic correction is turned on")
         
 class  static_class():
+    """
+    Defines the volume range for the fit of the static EoS
+    If not specified (default) such range is defined from the
+    volumes found in the static energies file.
+    """
     def __init__(self):
         self.flag=False
     def set(self, vmin, vmax):
+        """
+        Sets the minimum and maximum volumes for the V-range
+        
+        Args:
+            vmin: minimum volume
+            vmax: maximum volume
+        """
         self.vmin=vmin
         self.vmax=vmax
     def off(self):
+        """
+        Restores the original V-range (actually, it switches off the volume 
+        selection for the fit of the static EoS)
+        """
         self.flag=False 
+    def on(self):
+        """
+        It switches on the volume selection for the fit of the static EoS
+        
+        Note:
+            The minimum and maximum V-values are set by the 'set' method
+            of the class
+        """
+        self.flag=True
         
 class volume_control_class():
     """
@@ -708,8 +733,7 @@ class disp_class():
 
     Note:
         The method free_fit_vt() must be used to get the F(V,T) function for
-        off-center phonon modes.                                           
-    
+        off-center phonon modes.                                             
     """
     def __init__(self):
         self.flag=False
@@ -770,7 +794,7 @@ class disp_class():
         
     def freq_fit(self):
         """
-        It requests and makes polynomials fits of the frequencies of the off
+        It requests and makes polynomial fits of the frequencies of the off
         center modes as function of volumes. 
         
         The relevant parameter for the fit (degree) is specified in the  
@@ -947,9 +971,10 @@ class disp_class():
             The method does not execute the fit, but it defines the most
             important parameters. The fit is done by the free_fit_vt() method.
             
-        Note: the volumes used for the construction of the VT grid are those
-              provided in the appropriate input file. They are available
-              in the disp.vol variable.
+        Note: 
+            the volumes used for the construction of the VT grid are those
+            provided in the appropriate input file. They are available
+            in the disp.vol variable.
         """    
         self.free_min_t=min_t
         self.fit_vt_deg=degree
@@ -2561,13 +2586,31 @@ def static(plot=False, vmnx=[0., 0.]):
     """
     Static EoS
     
-    Input: 
+    Args: 
         plot: plot of the E(V) curve
         vmnx: array of two reals [vmin and vmax]; vmin is the
-              minimum volume and vmax is the maximum volume
-             
-    Use the method static_range.off() to reset the volume range
-    to the original one. 
+              minimum volume and vmax is the maximum volume.
+              If vmin and vmax are both 0., the whole V range
+              is used (as specified in the static energies file).
+              Default=[0., 0.]
+      
+    Note:            
+        The volume range can also be modified by using the methods
+        of the static_volume class
+        
+    Example:
+        static_volume.set(100., 120.)
+        static_volume.on()
+        static(plt=True)
+        
+        Computes the static EoS in the [100., 120.] volume range. The same
+        is obtained with
+        
+        static(plt=True, vmnx=[100., 120.])
+        
+        However, with the first method the defined volume range is recorded for
+        future computations; by using the second method, the volume range is reset
+        to the original one, once the fit is performed.  
     """
     global popt, pcov
         
@@ -2575,14 +2618,17 @@ def static(plot=False, vmnx=[0., 0.]):
         return None
     
     vol_flag=False
-    if (vmnx[0] > 0.1) or (vmnx[1] > 0.1):
+    if static_range.flag:
+       vol_min=static_range.vmin
+       vol_max=static_range.vmax
        vol_flag=True
-       static_range.flag=True
-       static_range.set(vmnx[0], vmnx[1])
-        
-    if vol_flag:
-       vol_min=vmnx[0]
-       vol_max=vmnx[1]
+    else:    
+       if (vmnx[0] > 0.1) or (vmnx[1] > 0.1):
+          vol_flag=True
+          vol_min=vmnx[0]
+          vol_max=vmnx[1]
+          
+    if vol_flag:      
        vol_select=(volume >= vol_min) & (volume <= vol_max)
        vol_selected=volume[vol_select]
        energy_selected=energy[vol_select]
