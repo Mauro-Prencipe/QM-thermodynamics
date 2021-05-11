@@ -7,8 +7,8 @@ import datetime
 
 from IPython import get_ipython
 
-%get_ipython().magic('cls')
-%get_ipython().magic('reset -sf')
+# get_ipython().magic('cls')
+# get_ipython().magic('reset -sf')
 
 import os  
 import sys  
