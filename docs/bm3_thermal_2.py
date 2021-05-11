@@ -750,7 +750,14 @@ class disp_class():
         print("No phonon dispersion correction for bulk_dir computation")
         
     def freq_spline_fit(self):
+        """
+        It requests and makes spline fits of the frequencies of the off
+        center modes as function of volumes. 
         
+        Relevant parameters for the fit (degree and smooth parameters) are 
+        specified in the appropriate input file. 
+        """
+ 
         self.spline=np.array([])
         ord_vol=list(np.argsort(self.vol))
         vol = [self.vol[iv] for iv in ord_vol]        
@@ -762,7 +769,13 @@ class disp_class():
             self.spline=np.append(self.spline, ifit)
         
     def freq_fit(self):
+        """
+        It requests and makes polynomials fits of the frequencies of the off
+        center modes as function of volumes. 
         
+        The relevant parameter for the fit (degree) is specified in the  
+        appropriate input file. 
+        """        
         self.poly=np.array([])
         
         for ifr in np.arange(self.f_size):
@@ -778,8 +791,7 @@ class disp_class():
         else:
            self.poly=self.poly.reshape(self.f_size,self.fit_degree+1) 
            
-    def freq_func(self,ifr,vv):
-        
+    def freq_func(self,ifr,vv):     
         fit=self.poly[ifr]
         return np.polyval(fit,vv)
     
@@ -788,6 +800,12 @@ class disp_class():
         return fit.item(0)
     
     def check(self,ifr):
+        """
+        Check of the frequencies fit quality for a specified mode
+       
+        Args:
+            ifr: sequence number of the mode to be checked
+        """
         
         v_list=np.linspace(np.min(disp.vol), np.max(disp.vol),40)
         
@@ -806,17 +824,44 @@ class disp_class():
         plt.show()
         
     def check_multi(self, fr_l):
+        """
+        Check of the frequencies fit quality for a list of modes
         
+        Args:
+            fr_l: list of sequence numbers of the various modes to be checked
+        
+        Example:
+            disp.check_multi([0, 1, 2, 3])
+            disp.check_multi(np.arange(10))
+        """
         for ifr in fr_l:
             self.check(ifr)
             
     def free_exclude(self,ex_list):
+        """
+        Excludes the indicated off-center modes from the computation of the 
+        free energy
+        
+        Args:
+            ex_list: list of modes to be excluded
+        
+        Note:
+            Even a single excluded mode must be specified as a list; for instance
+            disp.free_exclude([0])
+            
+        Note: after the exclusion of some modes, the F(V,T) function has
+              to be recomputed by the free_fit_vt method
+        """
+      
         self.ex_flag=True
         self.excluded_list=ex_list
         print("Off center modes excluded: ", self.excluded_list)
         print("Compute a new disp.free_fit_vt surface")
         
     def free_exclude_restore(self):
+        """
+        The excluded modes are restored
+        """       
         self.ex_flag=False   
         print("All off centered mode restored")
         print("Compute a new disp.free_fit_vt surface")
@@ -885,7 +930,27 @@ class disp_class():
               plt.show()    
   
     def free_fit_ctrl(self, min_t=10., degree=4, nt=24, disp=True):
+        """
+        Free fit driver: sets the relevant parameters for the fit computation
+        of the F(V,T) function, on the values of F calculated on a grid
+        of V and T points.
         
+        Args:
+            min_t: minimum temperature for the construction of the 
+                   VT grid (default=10.)
+            degree: degree of the surface (default=4)
+            nt: number of points along the T axis for the definition of the 
+                (default=24) grid
+            disp: it True, a plot of the surface is shown (default=True)
+            
+        Note:
+            The method does not execute the fit, but it defines the most
+            important parameters. The fit is done by the free_fit_vt() method.
+            
+        Note: the volumes used for the construction of the VT grid are those
+              provided in the appropriate input file. They are available
+              in the disp.vol variable.
+        """    
         self.free_min_t=min_t
         self.fit_vt_deg=degree
         self.free_nt=nt
