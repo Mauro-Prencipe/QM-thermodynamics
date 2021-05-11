@@ -7,9 +7,9 @@
 # with readthedocs
 
 
-# from IPython import get_ipython
-# get_ipython().magic('cls')
-# get_ipython().magic('reset -sf')
+from IPython import get_ipython
+get_ipython().magic('cls')
+get_ipython().magic('reset -sf')
 
 import datetime
 import os  
@@ -855,8 +855,8 @@ class disp_class():
             fr_l: list of sequence numbers of the various modes to be checked
         
         Example:
-            disp.check_multi([0, 1, 2, 3])
-            disp.check_multi(np.arange(10))
+            >>> disp.check_multi([0, 1, 2, 3])
+            >>> disp.check_multi(np.arange(10))
         """
         for ifr in fr_l:
             self.check(ifr)
@@ -873,8 +873,9 @@ class disp_class():
             Even a single excluded mode must be specified as a list; for instance
             disp.free_exclude([0])
             
-        Note: after the exclusion of some modes, the F(V,T) function has
-              to be recomputed by the free_fit_vt method
+        Note: 
+            after the exclusion of some modes, the F(V,T) function has
+            to be recomputed by the free_fit_vt method
         """
       
         self.ex_flag=True
@@ -1671,7 +1672,7 @@ def v_bm3(vv,v0,k0,kp,c):
         kp: derivative of k0 with respect to P
         c:  energy at the minimum
         
-    Outputs:
+    Returns:
         the energy at the volume vv
     """
     v0v=(np.abs(v0/vv))**(2/3)
@@ -3459,9 +3460,9 @@ def cp(tt,pp,plot=False,prt=False,dul=False,**kwargs):
                          (experts only)
         prt (optional): prints formatted results
         
-    Notes: 
+    Note: 
         Cp = Cv + V*T*K*alpha^2
-        
+     
         Cp, Cv (J/mol K), Cp/Cv, alpha (K^-1), K=K0+K'P (GPa) 
     """
     l_arg=list(kwargs.items())
