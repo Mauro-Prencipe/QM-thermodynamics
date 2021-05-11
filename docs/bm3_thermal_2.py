@@ -2598,15 +2598,15 @@ def static(plot=False, vmnx=[0., 0.]):
         The volume range can also be modified by using the methods
         of the static_volume class
         
-    Example:
-        static_volume.set(100., 120.)
-        static_volume.on()
-        static(plt=True)
+    Examples:
+        >>> static_volume.set(100., 120.)
+        >>> static_volume.on()
+        >>> static(plt=True)
         
         Computes the static EoS in the [100., 120.] volume range. The same
         is obtained with
         
-        static(plt=True, vmnx=[100., 120.])
+        >>> static(plt=True, vmnx=[100., 120.])
         
         However, with the first method the defined volume range is recorded for
         future computations; by using the second method, the volume range is reset
