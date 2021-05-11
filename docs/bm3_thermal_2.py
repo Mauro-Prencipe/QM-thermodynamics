@@ -6,11 +6,12 @@
 # Comment the following four lines to produce the documentation 
 # with readthedocs
 
-# import datetime
+
 # from IPython import get_ipython
 # get_ipython().magic('cls')
 # get_ipython().magic('reset -sf')
 
+import datetime
 import os  
 import sys  
 import scipy
@@ -301,7 +302,7 @@ class spline_flag(fit_flag):
     Note:
         The spline stack can be set up and initialized by using the keyword\
         SPLINE under the keyword FITVOL in the *input.txt* file
-          
+        
     Methods:
         
     """
@@ -689,6 +690,27 @@ class volume_control_class():
         self.skew=skew
         
 class disp_class():
+    """
+    Sets up the computation for the inclusion of phonon dispersion effects
+    the EoS computation or for the calculation of all the thermodynamic
+    properties. 
+    
+    The class is relevant and activated if the DISP keyword is contained
+    in the input.txt input file.
+    
+    Dispersion effects can be switched on or off by using the on() and off()
+    methods.
+    
+    Note:
+        To apply the phonon dispersion correction to computation of an equation
+        of state, the method eos_on() must be invoked [the method eos_off() switches
+        it off].   
+
+    Note:
+        The method free_fit_vt() must be used to get the F(V,T) function for
+        off-center phonon modes.                                           
+    
+    """
     def __init__(self):
         self.flag=False
         self.eos_flag=False
