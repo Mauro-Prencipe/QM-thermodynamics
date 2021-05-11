@@ -2726,10 +2726,10 @@ def free(temperature):
         temperature: temperature (in K) at which the computation is done
         
     Note: 
-       ei:    static energy
-       enz_i: zero point energy
-       fth_i: thermal contribution to the Helmholtz free energy 
-       tot_i: Total Helmholtz free energy
+       1. ei is the static energy
+       2. enz_i is the zero point energy
+       3. fth_i is thermal contribution to the Helmholtz free energy 
+       4. tot_i is the total Helmholtz free energy
     
     Note:
        This is a direct calculation that avoids the fit of a polynomium
