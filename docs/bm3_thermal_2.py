@@ -3,10 +3,11 @@
 # Version 2.4.0 18/02/2021
 #
 
-import datetime
+# Comment the following four lines to produce the documentation 
+# with readthedocs
 
-from IPython import get_ipython
-
+# import datetime
+# from IPython import get_ipython
 # get_ipython().magic('cls')
 # get_ipython().magic('reset -sf')
 
