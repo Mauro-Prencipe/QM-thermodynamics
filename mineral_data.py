@@ -175,6 +175,7 @@ per=mineral("periclase","per")
 sp=mineral("spinel","sp")
 mao=mineral("maohokite","mao")
 fmao=mineral("fe-maohokite","fmao")
+stv=mineral("stishovite","stv")
 
 def export(mineral_nick):
     
