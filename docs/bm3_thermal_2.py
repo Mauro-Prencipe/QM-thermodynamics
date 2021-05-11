@@ -1710,9 +1710,9 @@ def bmx_tem(tt,**kwargs):
         
     Keyword Args:
           fix: if fix > 0.1, kp is fixed to the value 'fix'
-          during the optimization of the EoS.
-          (this is a valid option only for the BM3 fit,
-          but it is ignored for a BM4 EoS)
+               during the optimization of the EoS.
+               (this is a valid option only for the BM3 fit,
+               but it is ignored for a BM4 EoS)
              
     Returns:              
            1. free energy values at the volumes used for the fit
@@ -1722,7 +1722,7 @@ def bmx_tem(tt,**kwargs):
     Note: 
         bmx_tem optimizes the EoS according to several 
         possible options specified elsewhere:            
-           1. kp fixed of free
+           1. kp fixed or free
            2. frequencies not fitted, or fitted by
               polynomials or splines
            3. 3^rd or 4^th order BM EoS          
@@ -2158,7 +2158,7 @@ def bulk_dir(tt,prt=False,**kwargs):
         tt: temperature
         prt (optional): if True, prints a P(V) list; default: False
         
-    **kwargs:
+    Keyword Args:
         fix: Kp fixed, if fix=Kp > 0.1 
         
     """
@@ -2720,23 +2720,24 @@ def start_bm4():
         
 def free(temperature):
     """
-    Computes the Helmholtz free energy at a given temperature
+    Computes the Helmholtz free energy (hartree) at a given temperature
     
     Args:
-        temperature
+        temperature: temperature (in K) at which the computation is done
         
-    ei:    static energy
-    enz_i: zero point energy
-    fth_i: thermal contribution to the Helmholtz free energy 
-    tot_i: Total Helmholtz free energy
+    Note: 
+       ei:    static energy
+       enz_i: zero point energy
+       fth_i: thermal contribution to the Helmholtz free energy 
+       tot_i: Total Helmholtz free energy
     
-    This is a direct calculation that avoids the fit of a polynomium
-    to the frequencies. No FITVOL in input.txt
+    Note:
+       This is a direct calculation that avoids the fit of a polynomium
+       to the frequencies. No FITVOL in input.txt
     
-    If kieffer.flag is True, the contribution from acoustic branches
-    is taken into account, by following the Kieffer model.
-    
-    Output in atomic units
+    Note: 
+      If kieffer.flag is True, the contribution from acoustic branches
+      is taken into account, by following the Kieffer model.
     """
     energy_tot=[]
     for ivol in int_set:
