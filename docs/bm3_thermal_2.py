@@ -5,10 +5,10 @@
 
 import datetime
 
-# from IPython import get_ipython
+from IPython import get_ipython
 
-# get_ipython().magic('cls')
-# get_ipython().magic('reset -sf')
+%get_ipython().magic('cls')
+%get_ipython().magic('reset -sf')
 
 import os  
 import sys  
@@ -30,7 +30,7 @@ from scipy import integrate
 from mineral_data import mineral, load_database, equilib, reaction,\
      pressure_react, export, field, import_database, name_list
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
-     mao, fmao
+     mao, fmao, stv
     
 import_database()
 
@@ -218,8 +218,8 @@ class data_info():
         print("Delta: %3.1f; degree: %2i; left: %3.1f; right: %3.1f, Kp_fix: %s; t_max: %5.2f"\
                % (volume_ctrl.delta, volume_ctrl.degree, volume_ctrl.left, volume_ctrl.right,\
                   volume_ctrl.kp_fix, volume_ctrl.t_max))
-        print("EoS shift: %3.1f; Quad_shrink: %2i " % \
-              (volume_ctrl.shift, volume_ctrl.quad_shrink) )
+        print("EoS shift: %3.1f; Quad_shrink: %2i; T_dump: %3.1f; Dump fact.: %2.1f" % \
+              (volume_ctrl.shift, volume_ctrl.quad_shrink, volume_ctrl.t_dump, volume_ctrl.dump) )
         
         if verbose.flag:
            print("\n--------- Database section ---------")    
@@ -593,47 +593,26 @@ class volume_control_class():
     def __init__(self):
         self.degree=2
         self.delta=2.
-        self.t_max=500
+        self.t_max=500.
         self.shift=0.
+        self.t_dump=0.
+        self.dump=1.
         self.quad_shrink=4
         self.kp_fix=False
         self.debug=False
         self.upgrade_shift=False
+        self.skew=1.
     def set_degree(self, degree):
         """
         Sets the degree of polynomial used to fit the (P(V)-P0)^2 data. 
         The fitted curve is the minimized to get the equilibrium volume
         at each T and P. 
-
-        Args:
-            degree:  degree of the polynomial (default: 2).
-                     If degree > 2, the minimum of the curve is found
-                     by a numerical method (function minimize).
-                     This can result in numerical instabilities.
-                     If degree=2, the minimum is analytically computed 
-                     This is the recommended option
-        """
-        self.degree=degree
-    def set_delta(self, delta):
-        self.delta=delta
-    def set_tmax(self,tmax):
-        self.t_max=tmax
-    def set_skew(self, skew):
-        self.left=skew+1
-        self.right=(skew+1)/skew
-    def on(self):
-        self.kp_fix=True
-    def off(self):
-        self.kp_fix=False
-    def debug_on(self):
-        self.debug=True
-    def debug_off(self):
-        self.debug=False
-    def set_all(self,degree=2, delta=2., skew=1., shift=0., t_max=500.,\
-                quad_shrink=4, kp_fix=True, upgrade_shift=False, debug=False):
-        """
-        Used to set the values of all the attributes of the class.
-
+        
+        For each of the single parameter revelant in this class, there exist
+        a specific method to set its value. The method set_all can be used to
+        set the values of a number of that, at the same time, by using appropriate
+        keywords as argument. The arguments to set_all are:
+        
         Args:
             degree: degree of the fitting polynomial (default=2)
             delta:  volume range where the minimum of the fitting function
@@ -657,8 +636,45 @@ class volume_control_class():
                            attribute is then upgraded if upgrade_shift is True
                            (default=False)
             debug:  if True, the (P(V)-P0)**2 function is plotted as a function
-                    of V (default=False)                         
+                    of V (default=False)   
+            t_dump: temperature over which a dumping on the shift parameter is
+                    applied (default=0.)
+            dump: dumping on the shift parameter (shift=shift/dump; default=1.)
+            
         """
+        self.degree=degree
+    def set_delta(self, delta):
+        self.delta=delta
+    def set_tmax(self,tmax):
+        self.t_max=tmax
+    def set_skew(self, skew):
+        self.left=skew+1
+        self.right=(skew+1)/skew
+    def kp_on(self):
+        self.kp_fix=True
+    def kp_off(self):
+        self.kp_fix=False
+    def debug_on(self):
+        self.debug=True
+    def debug_off(self):
+        self.debug=False
+    def set_shift(self, shift):
+        self.shift=shift
+    def upgrade_shift_on(self):
+        self.upgrade_shift=True
+    def upgrade_shift_off(self):
+        self.ugrade_shift=False
+    def set_shrink(self, shrink):
+        self.quad_shrink=shrink   
+    def shift_reset(self):
+        self.shift=0.    
+    def set_t_dump(self,t_dump=0., dump=1.0):
+        self.t_dump=t_dump
+        self.dump=dump        
+    def set_all(self,degree=2, delta=2., skew=1., shift=0., t_max=500.,\
+                quad_shrink=4, kp_fix=True, upgrade_shift=False, debug=False,\
+                t_dump=0., dump=1.):
+        
         self.degree=degree
         self.delta=delta
         self.t_max=t_max
@@ -666,8 +682,10 @@ class volume_control_class():
         self.debug=debug
         self.left=skew+1
         self.right=(skew+1)/skew        
-        self.shift=0.
+        self.shift=shift
         self.quad_shrink=quad_shrink
+        self.upgrade_shift=upgrade_shift
+        self.skew=skew
         
 class disp_class():
     def __init__(self):
@@ -1560,7 +1578,7 @@ def bm3(vv,v0,k0,kp):
         k0: bulk modulus
         kp: derivative of k0 with respect to P
         
-    Returns:
+    Outputs:
         the pressure at the volume vv    
     """
     v0v7=np.abs((v0/vv))**(7/3)
@@ -1577,24 +1595,27 @@ def bmx_tem(tt,**kwargs):
     Args:
         tt: temperature
         
-    Keyword Args: 
-        fix: if fix > 0.1, kp is fixed to the value 'fix'
-             during the optimization of the EoS.
-             (this is a valid option only for the BM3 fit,
-             but it is ignored for a BM4 EoS)
+    Kwargs: 
+          fix: if fix > 0.1, kp is fixed to the value 'fix'
+          during the optimization of the EoS.
+          (this is a valid option only for the BM3 fit,
+          but it is ignored for a BM4 EoS)
              
-    Output:         
-        1. free energy values at the volumes used for the fit
-        2. optimized v0, k0, kp, (kpp), and c
-        3. covariance matrix
+    Output:
+          3 arrays:
+              
+            1. free energy values at the volumes used for the fit
+            2. optimized v0, k0, kp, (kpp), and c
+            3. covariance matrix
              
     Note: 
         bmx_tem optimizes the EoS according to several 
         possible options specified elsewhere:
               
-            1. kp fixed or free
-            2. frequencies not fitted, or fitted by polynomials or splines
-            3. 3^rd or 4^th order BM EoS          
+           1. kp fixed of free
+           2. frequencies not fitted, or fitted by
+              polynomials or splines
+           3. 3^rd or 4^th order BM EoS          
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -1696,16 +1717,15 @@ def init_bm4(vv,en,kp):
     Args:
         vv (list): volumes
         en (list): static energies at the corresponding volumes vv
-        kp:initial value assigned to kp
+        kp:initail value assigned to kp
         
-    Return:
+    Output:
         "ini" list of V-integrated EoS parameters (for a BM3) estimated by a 
         polynomial fit: v_ini, k0_ini, kp, e0_ini. 
         
-    Note: 
-        such parameters are used as initial guesses for the BM3 optimization
-        performed by the method "estimates" of the class bm4 that, in turn, 
-        outputs the "ini" list for the BM4 EoS optimization. 
+    Note: such parameters are used as initial guesses for the BM3 optimization
+    performed by the method "estimates" of the class bm4 that, in turn, 
+    outputs the "ini" list for the BM4 EoS optimization. 
     """
     
     pol=np.polyfit(vv,en,4)
@@ -1730,12 +1750,11 @@ def init_bm3(vv,en):
         vv (list): volumes
         en (list): static energies at the corresponding volumes vv
         
-    Return:
+    Output:
         "ini" list of V-integrated EoS parameters estimated by a 
         polynomial fit: v_ini, k0_ini, kp, e0_ini. kp is set to 4.
         
-    Note: 
-        such parameters are used as initial guesses for the bm3 optimization.
+    Note: such parameters are used as initial guesses for the bm3 optimization.
     """
     kp_ini=4.
     pol=np.polyfit(vv,en,3)
@@ -1756,8 +1775,7 @@ def init_bm3(vv,en):
 # Kp can be kept fixed (by setting fix=Kp > 0.1)
 def pressure(tt,vv,**kwargs):
     """
-    Computes the pressure at a temperature and volume from an optimized
-    EoS at the given temperature.
+    Computes the pressure at a temperature and volume
     
     Args:
         tt:  temperature
@@ -1783,14 +1801,6 @@ def pressure(tt,vv,**kwargs):
        return round(bm3(vv,*eos)*conv/1e-21,3)
 
 def pressure_dir(tt,vv):
-    """
-    Computes the pressure at a given volume and pressure directly as 
-    the volume derivative of the Helmholtz free energy (at constant temperature)
-    
-    Args: 
-        tt: temperature
-        vv: volume
-    """
     
     deg=pr.degree_v
     
@@ -1830,12 +1840,7 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
     values are already set by default, but can be changed by using
     the method volume_ctrl.set_all. Use the info.show method to get such
     values under the 'volume driver section'.
-    
-    Args:
-        tt: temperature
-        pp: pressure
-        alpha_flag_1, alpha_flag_2: flags used by the alpha_dir function
-                                    (default=False)
+
     """  
     vol_opt.on()
     
@@ -1852,8 +1857,8 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
         eos_temp(tt,kp_only=True)
         set_fix(0)
              
-    vini=new_volume(tt,pp)
-    v_new=vini[0]
+    vini=new_volume(tt,pp)    
+    v_new=vini[0]                # Initial volume from EoS
     
     if not flag_poly.flag:
         if flag_fit_warning.value:
@@ -1890,7 +1895,10 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
               fit_status()
               print("")
 #           return vini
-    
+
+    if tt > volume_ctrl.t_dump:
+        volume_ctrl.shift=volume_ctrl.shift/volume_ctrl.dump
+        
     v_list=np.linspace(vini[0]-volume_ctrl.shift - volume_ctrl.delta/volume_ctrl.left,\
                        vini[0]-volume_ctrl.shift + volume_ctrl.delta/volume_ctrl.right, 24)
     p_list=np.array([])
@@ -1923,7 +1931,7 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
        shift=v_new-vmin
 
     if volume_ctrl.upgrade_shift:
-       volume_ctrl.shift=shift        
+       volume_ctrl.shift=shift     
  
     if volume_ctrl.degree > 2:
        if volume_ctrl.debug:
@@ -2040,8 +2048,9 @@ def bulk_dir(tt,prt=False,**kwargs):
         tt: temperature
         prt (optional): if True, prints a P(V) list; default: False
         
-    Keyword Args:
-        fix: Kp fixed, if fix=Kp > 0.1    
+    **kwargs:
+        fix: Kp fixed, if fix=Kp > 0.1 
+        
     """
     
     flag_volume_max.value=False
@@ -2166,8 +2175,7 @@ def bulk_dir(tt,prt=False,**kwargs):
             print(" %5.3f   %5.2f" % (vp_i[0], vp_i[1])) 
             
 def bulk_dir_serie(tini, tfin, npoints, degree=2, update=False, **kwargs):
-    
-    
+     
     l_arg=list(kwargs.items())
     fixpar=False
     for karg_i in l_arg:
@@ -2345,39 +2353,14 @@ def bulk_modulus_p(tt,pp,noeos=False,prt=False,**kwargs):
     
     if prt:
         eos=str(noeos)
-        print("Bulk Modulus at T = %5.1f K and P = %3.1f GPa, noeos = %s: %6.3f GPa " %\
-              (tt,pp,eos,b_val))
+        print("Bulk Modulus at T = %5.1f K and P = %3.1f GPa, noeos = %s: %6.3f GPa, V = %6.3f " %\
+              (tt,pp,eos,b_val, vol))
     else:
         b_val=round(b_val,3)
-        return b_val
+        return b_val, vol
 
 def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='poly', \
                          deg=2, smooth=5, out=False, **kwargs):
-    
-    """
-    Computes the bulk modulus, in a specified T range, from the definition
-    K=-V(dP/dV)_T 
-    
-    Args:
-        tini: initial temperature
-        tfin: final temperature
-        nt: number of T points in the range
-        pres: pressure
-        noeos: if False, the P(V) curve is from an EoS; if True, the vibrational 
-               pressure is computed from the derivative of the Helmoltz function
-               (Default=False; see the documentation of the bulk_modulus_p function)
-        fit: if True, the K(T) curve is fitted by a polynomial or spline function
-             according to the 'type' input parameter (default=False)
-        type: fitting function used to interpolate the K(T) points; polynomial
-              function (type='poly', default); spline function (type='spline')
-        deg: degree of the fitting function (default=2)
-        smooth: used for 'spline' fitting only 
-        out: if True, the parameters of the fitting function are returned
-             (default=False)
-             
-    Keyword Args:
-        fix: if > 0. and noeos=False, Kp=fix is fixed       
-    """
 
     l_arg=list(kwargs.items())
     fixpar=False
@@ -2390,29 +2373,38 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
     
     b_l=np.array([])    
     t_l=np.array([])
+    v_l=np.array([])
     
     if fixpar:
        for it in t_list:
-           ib=bulk_modulus_p(it,pres,noeos=noeos,fix=fix_value)
+           ib, v_val=bulk_modulus_p(it,pres,noeos=noeos,fix=fix_value)
            if vol_opt.flag:
               b_l=np.append(b_l,ib)
               t_l=np.append(t_l,it)
+              v_l=np.append(v_l,v_val)
     else:
        for it in t_list:
-           ib=bulk_modulus_p(it,pres,noeos=noeos)
+           ib,v_val=bulk_modulus_p(it,pres,noeos=noeos)
            if vol_opt.flag:
               t_l=np.append(t_l,it)
-              b_l=np.append(b_l,ib)  
+              b_l=np.append(b_l,ib) 
+              v_l=np.append(v_l,v_val)
            
     if fit:
         t_fit=np.linspace(tini,tfin,50)
         if type=='poly':
            fit_par=np.polyfit(t_l,b_l,deg)        
            b_fit=np.polyval(fit_par,t_fit)
+           
+           fit_par_v=np.polyfit(t_l,v_l,deg)
+           v_fit=np.polyval(fit_par_v,t_fit)
         elif type=='spline':
            fit_par=UnivariateSpline(t_l,b_l,k=deg,s=smooth)
            b_fit=fit_par(t_fit)
-            
+           
+           fit_par_v=UnivariateSpline(t_l,v_l,k=deg,s=0.1)
+           v_fit=fit_par_v(t_fit)
+           
     method='poly'
     if type=='spline':
         method='spline'
@@ -2432,7 +2424,7 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
     reset_fix()
     
     if out:
-        return fit_par
+        return fit_par, fit_par_v
 
 def bulk_modulus_adiabat(tt,pp,noeos=False, prt=True,**kwargs):
     """
@@ -2539,7 +2531,7 @@ def static(plot=False, vmnx=[0., 0.]):
     nvol=50
     vol_range=np.linspace(vol_min,vol_max,nvol)
     if not plot:
-       return
+       return pcov
     else:        
        plt.figure(0)
        plt.title("E(V) static BM3 curve")
@@ -2764,7 +2756,7 @@ def free_fit_vt(tt,vv):
     if disp.flag and disp.eos_flag:
         
         if not disp.fit_vt_flag:
-            disp.free_fit_vt(disp=False)
+            disp.free_fit_vt()
             print("\n**** INFORMATION ****")
             print("The V,T-fit of the phonon dispersion surface was not done")
             print("it has been perfomed with default values of the relevant parameters")
@@ -2951,15 +2943,15 @@ def entropy_p(tt,pp,plot=False,prt=True,**kwargs):
                          possible numerical instabilities
         prt (optional):  (default True) prints formatted output
          
-    Keyword Args: 
+    **kwargs: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized. 
              
-    Returns:
-        1. if prt=False outputs the entropy (J/mol K);
-        2. if prt=True (default), a formatted output is printed and the 
-           function returns None
+    Output:
+        if prt=False outputs the entropy (J/mol K);
+        if prt=True (default), a formatted output is printed and the 
+        function returns None
     """ 
     
     l_arg=list(kwargs.items())
@@ -3235,7 +3227,7 @@ def dalpha_dt(tt,pp,**kwargs):
 
 def alpha_dir(tt,pp):
     
-    dt=10.
+    dt=5.
     nt=pr.nump
     dt2=dt/2.
     deg=2
@@ -3332,9 +3324,8 @@ def cp(tt,pp,plot=False,prt=False,dul=False,**kwargs):
                          (experts only)
         prt (optional): prints formatted results
         
-    Notes: 
-        Cp = Cv + V*T*K*alpha^2
-        Cp, Cv (J/mol K), Cp/Cv, alpha (K^-1), K=K0+K'P (GPa) 
+    Notes: Cp = Cv + V*T*K*alpha^2
+           Cp, Cv (J/mol K), Cp/Cv, alpha (K^-1), K=K0+K'P (GPa) 
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -3527,14 +3518,13 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
                                  specified
         dpi (optional): dpi resolution of the saved image
         
-    Note: 
-        to output the coefficients of the fit, prt must be set to
-        False
+    Note: to output the coefficients of the fit, prt must be set to
+          False
           
-        The optional argument plot (default: False) is for checking
-        possible numerical issues
+          The optional argument plot (default: False) is for checking
+          possible numerical issues
           
-        It is advised to keep Kp fixed during the computation
+          It is advised to keep Kp fixed during the computation
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4492,11 +4482,11 @@ def check_spline_list(list_of_modes):
     of volumes, along with their fitting according to the spline
     parameters chosen.
     
-    Args: 
-        list_of_modes (a list of integers)
+    Args: list_of_modes (a list of integers)
     
     Example:
-        check_spline_list([0, 1, 2])     
+        check_spline_list([0, 1, 2])
+        
     """
     
     for ifr in list_of_modes:
@@ -4518,11 +4508,11 @@ def check_poly_list(list_of_modes):
     """
     Plots the frequencies of a given list of normal modes
     
-    Args: 
-        list_of_modes (a list of integers)
+    Args: list_of_modes (a list of integers)
     
     Example:
-        check_poly_list([0, 1, 2])      
+        check_poly_list([0, 1, 2])
+        
     """
     
     for ifr in list_of_modes:
@@ -5054,7 +5044,7 @@ def upload_mineral(tmin,tmax,points=12,HT_lim=0., deg=1, g_deg=1, model=1, mqm='
     
     if b_dir and blk_dir:
        v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
-       fit_b=bulk_modulus_p_serie(tmin, tmax,5,0, noeos=False, fit=True, deg=1, out=True)
+       fit_b,_=bulk_modulus_p_serie(tmin, tmax,5,0, noeos=False, fit=True, deg=1, out=True)
        dkt=fit_b[0]
     else:    
        v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
@@ -5556,15 +5546,14 @@ def helm_anharm_func(mode,vv,tt):
 def anharm_pressure_vt(mode,vv,tt,deg=2,dv=2,prt=True):
     """
     Pressure (GPa) of a single anharmonic mode at a given cell volume and 
-    temperature, computed from the derivative -(dF/dV)_T
+    temperature from the derivative -(dF/dV)_T
     
-    Args:
-        mode: mode number (a number in the list [0,..., anharm.nmode])
-        vv:   volume (A^3)
-        tt:   temperature (K)
-        deg:  degree of the polynomial fitting the F(V) function (default: 2)
-        dv:   V range (A^3) for the calculation of the F(V) function (default: 2)
-        prt:  print formatted result (default: True)
+    mode: mode number (a number in the list [0,..., anharm.nmode])
+    vv:   volume (A^3)
+    tt:   temperature (K)
+    deg:  degree of the polynomial fitting the F(V) function (default: 2)
+    dv:   V range (A^3) for the calculation of the F(V) function (default: 2)
+    prt:  print formatted result (default: True)
     """
     
     if not anharm.flag:
@@ -5597,15 +5586,15 @@ def anharm_pressure(mode,tmin,tmax,nt,deg=2,dv=2,fit=True, fit_deg=4, prt=True):
     """
     Pressure (GPa) of an anharmonic mode in a given T range
     
-    Args:
-        mode:     mode number (a number in the list [0,..., anharm.nmode])
-        tmin:     minimum temperature
-        tmax:     maximum temperature
-        nt:       number of points in the T interval
-        deg, dv:  see doc for anharm_pressure_vt
-        fit:      polynomial fit of the P(T) values
-        fit_deg:  degree of the fitting polynomial
-        prt:      if True, prints a list of T, V, P values
+    mode:     mode number (a number in the list [0,..., anharm.nmode])
+    tmin:     minimum temperature
+    tmax:     maximum temperature
+    nt:       number of points in the T interval
+    deg, dv:  see doc for anharm_pressure_vt
+    fit:      polynomial fit of the P(T) values
+    fit_deg:  degree of the fitting polynomial
+    prt:      if True, prints a list of T, V, P values
+    
     """
     
     if not anharm.flag:
@@ -5699,12 +5688,12 @@ def debye(tmin=5.,tmax=300.,nt=24, d_min=50., d_max=1500., nd=48):
     """
     Debye temperature estimation
     
-    Args:
-        tmin: lower limit of the temperature range
-        tmax: higher limit of the temperature range
-        nt:   number of point is the T range
-        d_min, d_max, nd: define the range where the Debye
-                          temperature is to be searched
+    tmin: lower limit of the temperature range
+    tmax: higher limit of the temperature range
+    nt:   number of point is the T range
+    
+    d_min, d_max, nd: define the range where the Debye
+                      temperature is to be searched
     """
     
     if tmin < 5.:
@@ -5831,36 +5820,51 @@ def reset_flag():
     exclude.restore()
     if supercell.flag:
         supercell.reset()
-        
-def user():
-    
+
+
+
+def user():   
     data_exp=np.loadtxt(path+'/Angel_exp.txt')
     t_exp=data_exp[:,0]
+    idx=np.argsort(t_exp)   
     b_exp=data_exp[:,1]
+    
+    t_exp=t_exp[idx]
+    b_exp=b_exp[idx]
 
     t_list=np.linspace(50,1000,40)
     
-    b_par=bulk_modulus_p_serie(50,1000,36,0,noeos=True,fit=True,type='spline',\
-                               deg=2,smooth=10,out=True)
+    b_par,v_par=bulk_modulus_p_serie(50,980,40,0,noeos=True,fit=True,type='spline',\
+                               deg=3,smooth=5,out=True)
     
     b_list=(b_par(tt).item(0) for tt in t_list)
     b_list=list(b_list)
+    
+    b_calc=(b_par(tt).item(0) for tt in t_exp)
+    b_calc=list(b_calc)
+    
+    v_calc=(v_par(tt).item(0) for tt in t_exp)
+    v_calc=list(v_calc)
+
+    delta=b_calc-b_exp
+    delta=np.array(delta).round(1)
         
     plt.figure()
     plt.plot(t_list,b_list,label="Calculated")
     plt.plot(t_exp,b_exp,"k*",label="Experimental")
     plt.xlabel("Temperature (K)")
     plt.ylabel("Bulk Modulus (GPa)")
-    plt.xlim(50, 1010)
+    plt.xlim(50, 1000)
     plt.ylim(0,45)
     plt.legend(frameon=False)
     plt.show()
-    
-# Quick_start file processing:
-# It contains the name of the folder containing the data
-# and instructions to be executed immediately after the 
-# the loading
 
+    serie=(t_exp, np.array(b_calc).round(1), b_exp, delta, np.array(v_calc).round(3))
+    df_out=pd.DataFrame(serie, index=['T', 'CALC', 'EXP', 'Delta', 'Vol'])
+    df_out=df_out.T
+    print(df_out.to_string(index=False))   
+
+     
 def remark(string):
     print(string)
    
@@ -5968,5 +5972,6 @@ def main():
            
 if __name__=="__main__":
     main()
+    
            
     
