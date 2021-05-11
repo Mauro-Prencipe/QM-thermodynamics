@@ -1691,7 +1691,7 @@ def bm3(vv,v0,k0,kp):
         k0: bulk modulus
         kp: derivative of k0 with respect to P
         
-    Outputs:
+    Returns:
         the pressure at the volume vv    
     """
     v0v7=np.abs((v0/vv))**(7/3)
@@ -1829,7 +1829,7 @@ def init_bm4(vv,en,kp):
         en (list): static energies at the corresponding volumes vv
         kp:initail value assigned to kp
         
-    Output:
+    Returns:
         "ini" list of V-integrated EoS parameters (for a BM3) estimated by a 
         polynomial fit: v_ini, k0_ini, kp, e0_ini. 
         
@@ -1860,11 +1860,12 @@ def init_bm3(vv,en):
         vv (list): volumes
         en (list): static energies at the corresponding volumes vv
         
-    Output:
+    Returns:
         "ini" list of V-integrated EoS parameters estimated by a 
         polynomial fit: v_ini, k0_ini, kp, e0_ini. kp is set to 4.
         
-    Note: such parameters are used as initial guesses for the bm3 optimization.
+    Note: 
+        such parameters are used as initial guesses for the bm3 optimization.
     """
     kp_ini=4.
     pol=np.polyfit(vv,en,3)
@@ -2999,7 +3000,7 @@ def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized. 
              
-    Output:
+    Returns:
         if prt=False (default) outputs the entropy and the specific heat
         at constant volume (unit: J/mol K). if prt=True, a formatted
         output is printed and the function provides no output
@@ -3205,12 +3206,13 @@ def thermal_exp_p(tt,pp,plot=False,exit=False,**kwargs):
         pp:               pressure
         plot (optional):  plots pressure vs T values (see help to
                           the thermal_exp_v function)
-    **kwargs: 
+    Keyword Args: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized.
              
-    Note: see help for the thermal_exp_v function  
+    Note: 
+        see help for the thermal_exp_v function  
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -3457,8 +3459,10 @@ def cp(tt,pp,plot=False,prt=False,dul=False,**kwargs):
                          (experts only)
         prt (optional): prints formatted results
         
-    Notes: Cp = Cv + V*T*K*alpha^2
-           Cp, Cv (J/mol K), Cp/Cv, alpha (K^-1), K=K0+K'P (GPa) 
+    Notes: 
+        Cp = Cv + V*T*K*alpha^2
+        
+        Cp, Cv (J/mol K), Cp/Cv, alpha (K^-1), K=K0+K'P (GPa) 
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -3509,9 +3513,10 @@ def dcp_dp(tt,pp,**kwargs):
         fix (optional): fixed Kp value; if fix=0., Kp is
                         optimized 
     
-    The derivative is evaluated from the relation
-    (dCp/dP)_T = -VT[alpha^2 + (d alpha/dT)_P]
-    It is **strongly** advised to keep Kp fixed (Kp=fix)
+    Notes:
+        The derivative is evaluated from the relation
+        (dCp/dP)_T = -VT[alpha^2 + (d alpha/dT)_P]
+        It is **strongly** advised to keep Kp fixed (Kp=fix)
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -3651,13 +3656,14 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
                                  specified
         dpi (optional): dpi resolution of the saved image
         
-    Note: to output the coefficients of the fit, prt must be set to
-          False
+    Note: 
+        to output the coefficients of the fit, prt must be set to
+        False
           
-          The optional argument plot (default: False) is for checking
-          possible numerical issues
+        The optional argument plot (default: False) is for checking
+        possible numerical issues
           
-          It is advised to keep Kp fixed during the computation
+        It is advised to keep Kp fixed during the computation
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -3786,8 +3792,9 @@ def bulk_serie(tini,tfin,npoint,fit=True,degree=2,update=False,\
         save (optional, string): file name of the saved plot
         dpi (optional, integer): dpi resolution of the saved image                 
         
-    Note: the fix argument overrides the value of Kp possibly set 
-    by the set_fix function
+    Note: 
+        the fix argument overrides the value of Kp possibly set 
+        by the set_fix function
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -3836,7 +3843,7 @@ def free_v(tt,vol,**kwargs):
         tt: temperature (K)
         vol: cell volume (A^3)
         
-    kwargs: 
+    Keyword Args: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized.
@@ -3947,15 +3954,17 @@ def gibbs_serie_p(pini, pfin, npres, tt, prt=True, **kwargs):
         tt:      temperature (K)
         prt (optional): if True, prints a numerical table G(P)
         
-    **kwargs:
+    Keyword Args:
         fix: Kp fixed, if fix=Kp > 0.1 
         g0:  Experimental G at the reference T and P (J/mol)
         v0:  Experimental V at the reference T and P (J/mol bar)
         
-    Output: Gibbs free energy in J/mol
+    Returns: 
+        Gibbs free energy in J/mol
     
-    Note: the free energy is given with reference to the energy
-          at the standard state (298.15 K; 0 GPa)
+    Note: 
+        the free energy is given with reference to the energy
+        at the standard state (298.15 K; 0 GPa)
     """
     
     l_arg=list(kwargs.items())
@@ -4044,15 +4053,17 @@ def gibbs_serie_t(tini, tfin, ntemp, pp, prt=True, **kwargs):
         pp:      pressure (GPa)
         prt (optional): if True, prints a numerical table G(Y)
         
-    **kwargs:
+    Keyword Args:
         fix: Kp fixed, if fix=Kp > 0.1
         g0:  Experimental G at the reference T and P (J/mol)
         v0:  Experimental V at the reference T and P (J/mol bar)
         
-    Output: Gibbs free energy in J/mol
+    Returns: 
+        Gibbs free energy in J/mol
     
-    Note: the free energy is given with reference to the energy
-          at the standard state (298.15 K; 0 GPa)
+    Note: 
+        The free energy is given with reference to the energy
+        at the standard state (298.15 K; 0 GPa)
     """
     
     l_arg=list(kwargs.items())
@@ -4139,8 +4150,9 @@ def eos_temp(tt,prt=True,update=False,kp_only=False):
                         and a list o volume/pressure at the chosen
                         temperature
                         
-    Note: in the optimization, Kp can be kept fixed to the value
-          set by the set_fix function
+    Note: 
+        In the optimization, Kp can be kept fixed to the value
+        set by the set_fix function
     """
     volb=data_vol_freq
     if flag_poly.flag:
@@ -4210,17 +4222,20 @@ def eosfit_dir(file_name, unit=False):
     """
     Writes a PVT file to be used with EosFit
     Temperature data are in the temperature_list list
-    usage:
-
-    eosfit_dir("myfile.dat")
+    
+    Args: 
+        file_name: name of the output file
+        unit: if unit=True, volumes are converted in cm^3/mol
+    
+    Example:
+       >>> eosfit_dir("myfile.dat")
  
     enclose the file name in quotes.
     
-    The computation of P(V,T) is performed without reference to 
-    any EoS, as pressure at (V,T) is computed as numerical 
-    derivative of F with respect to V at constant temperature.
-    
-    if unit = True, volumes are converted in cm^3/mol
+    Note:
+       The computation of P(V,T) is performed without reference to 
+       any EoS, as pressure at (V,T) is computed as numerical 
+       derivative of F with respect to V at constant temperature.
     """
     
     file_name=path+'/'+file_name
@@ -4269,21 +4284,23 @@ def eosfit_dir(file_name, unit=False):
     np.savetxt(file_name, eosdata, fmt="%5.3f %12.4f %8.2f", \
                header=string, comments="")
     print("\nEoSFit file %s saved" % file_name)
-        
-               
+                      
 
 def eosfit(file_name,**kwargs):
     """
     Writes a PVT file to be used with EosFit
     Temperature data are in the temperature_list list
-    usage:
-
-    eosfit("myfile.dat")
+    
+    Args:
+        file_name: name of the output file
+        
+    Keyword Args:
+        if the optional argument 'fix' is larger than 0.1, Kp=fix is fixed
+    
+    Example:
+       >>> eosfit("myfile.dat")
  
     enclose the file name in quotes
-    
-    Note: if the optional argument 'fix' is larger than 0.1
-          Kp=fix is fixed.
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4347,7 +4364,7 @@ def new_volume(tt,pr,**kwargs):
         tt: temperature (K)
         pp: pressure (GPa)
         
-    kwargs:
+    Keyword Args:
         fix (optional): used to keep Kp fixed 
     """
     l_arg=list(kwargs.items())
@@ -4461,10 +4478,11 @@ def freq_poly_p(ifr,tt=300., p0=0., plot=True, prt=True, **kwargs):
         tt: temperature (K)
         pp: pressure (GPa)
         
-    kwargs:
+    Keyword Args::
         fix (optional): Kp value fixed to *fix* if *fix* > 0.1
-        
-    A polynomial fitting must be active
+     
+    Note:
+       A polynomial fitting must be active
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4618,7 +4636,7 @@ def check_spline_list(list_of_modes):
     Args: list_of_modes (a list of integers)
     
     Example:
-        check_spline_list([0, 1, 2])
+        >>> check_spline_list([0, 1, 2])
         
     """
     
@@ -4641,11 +4659,11 @@ def check_poly_list(list_of_modes):
     """
     Plots the frequencies of a given list of normal modes
     
-    Args: list_of_modes (a list of integers)
+    Args: 
+        list_of_modes (a list of integers)
     
     Example:
-        check_poly_list([0, 1, 2])
-        
+        >>> check_poly_list([0, 1, 2])
     """
     
     for ifr in list_of_modes:
@@ -4705,13 +4723,15 @@ def pressure_freq(ifr,freq,tt,degree=4,**kwargs):
         degree (optional): degree of the polynomial fitting the P/freq
                            values from the pressure_freq_list function
         
-    **kwargs: 
+    Keyword Args: 
         fix: Kp fixed, if fix=Kp > 0.1
         
-    Note: it is advised to keep Kp fixed by either specifying fix, or
-          by using set_fix.
-          For "noisy" modes, use polynomial fits (set_poly), or 
-          a spline fit (set_spline) with a large smooth parameter.
+    Notes: 
+        it is advised to keep Kp fixed by either specifying fix, or
+        by using set_fix.
+        
+        For "noisy" modes, use polynomial fits (set_poly), or 
+        a spline fit (set_spline) with a large smooth parameter.
     """
     
     if (not flag_poly.flag) and (not flag_spline.flag):
@@ -4765,14 +4785,15 @@ def temperature_freq(ifr,freq, tmin, tmax, npt, pp,degree=2,**kwargs):
         degree (optional): degree of the polynomial fitting the P/freq
                            values from the pressure_freq_list function
         
-    **kwargs: 
+    Keyword Args: 
             fix: Kp fixed, if fix=Kp > 0.1
         
     Note: 
         it is advised to keep Kp fixed by either specifying fix, or
-          by using set_fix.
-          For "noisy" modes, use polynomial fits (set_poly), or 
-          a spline fit (set_spline) with a large smooth parameter.
+        by using set_fix.
+        
+        For "noisy" modes, use polynomial fits (set_poly), or 
+        a spline fit (set_spline) with a large smooth parameter.
     """
     
     if (not flag_poly.flag) and (not flag_spline.flag):
@@ -4837,7 +4858,7 @@ def grun_mode_vol(ifr,vv, method='poly',plot=False):
                            of the selected mode in a neighborhood of the
                            volume vv
                            
-    Output:
+    Returns:
         Mode-gamma Gruneisen parameter and the frequency of the mode at the 
         volume vv
     """
@@ -4882,7 +4903,7 @@ def gruneisen(vol, method='poly',plot=True):
         plot (optional):   if True (default), plots the mode-gamma Gruneisen
                            parameters of all the modes
                            
-    Output:
+    Returns:
         if plot=False, outputs the list of the mode-gamma Gruneisen parameters
         of all the modes
     """
@@ -4920,7 +4941,7 @@ def gruneisen_therm(tt,pp,ex_data=False,prt=True,**kwargs):
         tt:  temperature
         pp:  pressure
         
-    **kwargs:
+    Keyword Args:
         fix: Kp fixed, if fix=Kp > 0.1   
     """
     
@@ -5024,7 +5045,7 @@ def number_phonon_mode(ifr,tt,vol,method='poly'):
         method (optional): method chosen for the frequency/volume values
                            (default: 'poly'; other possible method='spline')
                            
-    Output:
+    Returns:
         Number of phonons computed according to the Bose-Einstein statistics
     """
     
@@ -5056,7 +5077,7 @@ def pressure_phonon_mode(ifr,tt,vol,method='poly'):
         method (optional): method chosen for the frequency/volume values
                            (default: 'poly'; other possible method='spline')
                            
-    Output:
+    Returns:
         Vibrational pressure of the "ifr" mode (in GPa) at the selected
         temperature (tt) and volume (vv)
     
@@ -5091,7 +5112,7 @@ def pressure_phonon(tt,vol,method='poly',plot=True):
         plot (optional):   if True (default), plots the contribution to the
                            vibrational pressure of all the normal modes.
                            
-    Output:
+    Returns:
         If plot=False, outputs the vibrational pressure of all the modes 
         (in GPa) at the selected temperature (tt) and volume (vv). 
     """
@@ -5159,7 +5180,7 @@ def upload_mineral(tmin,tmax,points=12,HT_lim=0., deg=1, g_deg=1, model=1, mqm='
         
                 
     Example:
-        upload_mineral(300,800,16,mqm='coe', b_dir=True)
+        >>> upload_mineral(300,800,16,mqm='coe', b_dir=True)
     """
     
     
@@ -5283,7 +5304,7 @@ def equilib_dir(tini,tfin,npoint, mqm='py', \
         rea:    list of reactants; same syntax as the "prod" list.
         
     Example:
-        equilib_dir(300, 500, 12, mqm='py', prod=['py',1], rea=['ens', 1.5, 'cor', 1])
+        >>> equilib_dir(300, 500, 12, mqm='py', prod=['py',1], rea=['ens', 1.5, 'cor', 1])
     """   
     lprod=len(prod)
     lrea=len(rea)
@@ -5681,12 +5702,13 @@ def anharm_pressure_vt(mode,vv,tt,deg=2,dv=2,prt=True):
     Pressure (GPa) of a single anharmonic mode at a given cell volume and 
     temperature from the derivative -(dF/dV)_T
     
-    mode: mode number (a number in the list [0,..., anharm.nmode])
-    vv:   volume (A^3)
-    tt:   temperature (K)
-    deg:  degree of the polynomial fitting the F(V) function (default: 2)
-    dv:   V range (A^3) for the calculation of the F(V) function (default: 2)
-    prt:  print formatted result (default: True)
+    Args:
+       mode: mode number (a number in the list [0,..., anharm.nmode])
+       vv:   volume (A^3)
+       tt:   temperature (K)
+       deg:  degree of the polynomial fitting the F(V) function (default: 2)
+       dv:   V range (A^3) for the calculation of the F(V) function (default: 2)
+       prt:  print formatted result (default: True)
     """
     
     if not anharm.flag:
@@ -5719,15 +5741,15 @@ def anharm_pressure(mode,tmin,tmax,nt,deg=2,dv=2,fit=True, fit_deg=4, prt=True):
     """
     Pressure (GPa) of an anharmonic mode in a given T range
     
-    mode:     mode number (a number in the list [0,..., anharm.nmode])
-    tmin:     minimum temperature
-    tmax:     maximum temperature
-    nt:       number of points in the T interval
-    deg, dv:  see doc for anharm_pressure_vt
-    fit:      polynomial fit of the P(T) values
-    fit_deg:  degree of the fitting polynomial
-    prt:      if True, prints a list of T, V, P values
-    
+    Args: 
+       mode:     mode number (a number in the list [0,..., anharm.nmode])
+       tmin:     minimum temperature
+       tmax:     maximum temperature
+       nt:       number of points in the T interval
+       deg, dv:  see doc for anharm_pressure_vt
+       fit:      polynomial fit of the P(T) values
+       fit_deg:  degree of the fitting polynomial
+       prt:      if True, prints a list of T, V, P values
     """
     
     if not anharm.flag:
@@ -5770,9 +5792,10 @@ def debye_limit(tmin=0.1,tmax=50,nt=24):
     """
     Debye temperature estimation at the low temperature limit
     
-    tmin: lower limit of the temperature range
-    tmax: higher limit of the temperature range
-    nt:   number of point is the T range
+    Args:
+      tmin: lower limit of the temperature range
+      tmax: higher limit of the temperature range
+      nt:   number of point is the T range
     """
     
     t_list=np.linspace(tmin,tmax,nt)
@@ -5821,12 +5844,13 @@ def debye(tmin=5.,tmax=300.,nt=24, d_min=50., d_max=1500., nd=48):
     """
     Debye temperature estimation
     
-    tmin: lower limit of the temperature range
-    tmax: higher limit of the temperature range
-    nt:   number of point is the T range
+    Args:
+       tmin: lower limit of the temperature range
+       tmax: higher limit of the temperature range
+       nt:   number of point is the T range
     
-    d_min, d_max, nd: define the range where the Debye
-                      temperature is to be searched
+       d_min, d_max, nd: define the range where the Debye
+                         temperature is to be searched
     """
     
     if tmin < 5.:
