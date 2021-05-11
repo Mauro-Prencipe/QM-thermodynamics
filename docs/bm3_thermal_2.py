@@ -2782,22 +2782,22 @@ def free(temperature):
 
 def free_fit(temperature):
     """
-    Computes the Helmholtz free energy at a given temperature
+    Computes the Helmholtz free energy (in hartree) at a given temperature
     
     Args:
-        temperature
+        temperature: temperature (in K)
         
-    ei:    static energy
-    enz_i: zero point energy
-    fth_i: thermal contribution to the Helmholtz free energy 
-    tot_i: Total Helmholtz free energy
-    
-    This computation makes use of polynomia fitted
-    to the frequencies of each vibrational mode, as 
-    functions of volume. It is activated by the keyword
-    FITVOL in the input.txt file
-    
-    Output in atomic units
+    Note: 
+       1. ei is the static energy
+       2. enz_i is the zero point energy
+       3. fth_i is thermal contribution to the Helmholtz free energy 
+       4. tot_i is the total Helmholtz free energy
+       
+    Note:
+       This computation makes use of polynomia fitted
+       to the frequencies of each vibrational mode, as 
+       functions of volume. It is activated by the keyword
+       FITVOL in the input.txt file
     """
     energy_tot=[]
     eianh=0.
@@ -2904,13 +2904,14 @@ def eos_temp_range(vmin_list, vmax_list, npp, temp):
     """
     EoS computed for different volumes ranges
     
-    Input:
+    Args:
        vmin_list: list of minimum volumes
        vmax_list: list of maximum volumes
        npp: number of points in each V-range
        temp: temperature
     
-    vmin_list and vmax_list must be list of same length
+    Note:
+       vmin_list and vmax_list must be lists of same length
     """
     final=np.array([])
     size=len(vmin_list)
@@ -2993,7 +2994,7 @@ def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
                          possible numerical instabilities
         prt (optional):  (default False) prints formatted output
          
-    **kwargs: 
+    Keyword Args: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized. 
@@ -3075,15 +3076,14 @@ def entropy_p(tt,pp,plot=False,prt=True,**kwargs):
                          possible numerical instabilities
         prt (optional):  (default True) prints formatted output
          
-    **kwargs: 
+    Keyword Args: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized. 
              
-    Output:
-        if prt=False outputs the entropy (J/mol K);
-        if prt=True (default), a formatted output is printed and the 
-        function returns None
+    Returns:
+        if prt=False outputs the entropy (J/mol K); if prt=True (default), 
+        a formatted output is printed and the function returns None
     """ 
     
     l_arg=list(kwargs.items())
@@ -3117,30 +3117,31 @@ def thermal_exp_v(tt,vv,plot=False,**kwargs):
         plot (optional): (default False) plots pressure vs T for checking
                          possible numerical instabilities  
     
-    **kwargs: 
+    Keyword Args: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized. 
   
-    Output: thermal expansion (K^-1), bulk modulus (GPa) and pressure (GPa)
-            at given temperature=tt and volume=vv
+    Returns: 
+          thermal expansion (K^-1), bulk modulus (GPa) and pressure (GPa)
+          at given temperature=tt and volume=vv
             
     Notes: 
-           The value is obtained by calculating (dP/dT)_V divided by K
-           where K=K0+K'*P; P is obtained by the BM3 EoS's whose parameters 
-           (at temperatures in the range "t_range") are refined by fitting
-           the free energy F(V,T) curves. The different pressures calculated 
-           (at constant vv) for different T in t_range, are then fitted by a
-           polynomial of suitable degree  ("degree" variable) which is then 
-           derived analytically at the temperature tt, to get (dP/dT)_V
+        The value is obtained by calculating (dP/dT)_V divided by K
+        where K=K0+K'*P; P is obtained by the BM3 EoS's whose parameters 
+        (at temperatures in the range "t_range") are refined by fitting
+        the free energy F(V,T) curves. The different pressures calculated 
+        (at constant vv) for different T in t_range, are then fitted by a
+        polynomial of suitable degree  ("degree" variable) which is then 
+        derived analytically at the temperature tt, to get (dP/dT)_V
            
-           If "fix" > 0.1, the BM3 fitting is done by keeping kp fixed at the 
-           value "fix". 
+        If "fix" > 0.1, the BM3 fitting is done by keeping kp fixed at the 
+        value "fix". 
            
-           The function outputs the thermal expansion (in K^-1), the bulk 
-           modulus [at the pressure P(vv,tt)] and the pressure (in GPa) 
-           if the boolean "plot" is True (default) a plot of P as a 
-           function of T is plotted, in the range t_range         
+        The function outputs the thermal expansion (in K^-1), the bulk 
+        modulus [at the pressure P(vv,tt)] and the pressure (in GPa) 
+        if the boolean "plot" is True (default) a plot of P as a 
+        function of T is plotted, in the range t_range         
     """
     
     l_arg=list(kwargs.items())
