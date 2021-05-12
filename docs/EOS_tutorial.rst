@@ -23,3 +23,7 @@ notebooks offers a particularly convenient environment to run the code in intera
 `LO-TO splitting correction`_
 
 .. _LO-TO splitting correction: _static/LO_TO_splitting.html
+
+`Anharmonic correction`_
+
+.. _Anharmonic correction: _static/anharm.html
