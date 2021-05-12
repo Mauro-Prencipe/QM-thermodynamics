@@ -12,15 +12,18 @@ Keywords can be inserted in any order and must be followed by the parameters the
 List of keywords:
 
 - ALPHA   (**optional**):   powers of a polynomial for the fitting of thermal expansion as a function of *T* 
+- ANH     (**optional**):   input for anharmonic calculation
 - CP      (**optional**):   powers of a polynomial for the fitting of specific heat (at *P* constant) as a function of *T*
+- DISP    (**optional**):   input for phonon dispersion correction
 - END     (**mandatory**):  end of keywords list
 - EXCLUDE (**optional**):   specifies a list of modes to be excluded from the computation of the free energy
 - EXP     (**optional**):   file name of experimental Cp and S data from the literature, for comparison with computed results
 - FITVOL  (**optional**):   fitting of the frequencies in a given V range and use of the fitted values in the calculation of *F* free energy
 - FREQ    (**mandatory**):  file name of the frequencies data set
-- LO      (**optional**):   file name of the LO-TO splitting data
-- FU      (**mandatory**):  number of formula units in the primitive cell
+- FU      (**mandatory**):  number of formula units in the primitive cell, and number of atoms in the formula unit 
 - INI     (**optional**):   initial parameters for the fit of a volume integrated 3° order Birch-Murnaghan EoS to the *F* free energy(volume) data
+- KIEF    (**optional**):   input for the modified Kieffer model
+- LO      (**optional**):   file name of the LO-TO splitting data
 - SET     (**mandatory**):  set of volumes/frequencies to be used in the calculation (a list of integers indexing the file specified by the VOLUME keyword)
 - STATIC  (**mandatory**):  file name of static energy curve (volumes and static internal energy of the crystal)
 - TEMP    (**optional**):   set of temperature for the output of a *PVT* file to be used with the EoSFit program
@@ -44,7 +47,30 @@ Below, an example of input file is shown
 | # INI:     initial parameters for the EoS
 | # CP       powers for the polynomial fit of Cp(T)
 | # ALPHA:   Powers for the polynomial fit of alpha(T) (fixed pressure)
-|  
+| # DISP:    Phonon dispersion correction from a supercell calculation
+| #          parameters:
+| #          - Name of the file containing the frequencies
+| #          - Name of the file containing the information for processing the data and the unit cell volumes
+| #            at which frequencies are computed (info file)
+| #          Notes:
+| #          - frequencies' file: off-centered modes only; the first column of the file must contain 
+| #            the degeneracy of the mode; the subsequent columns do contain the frequencies, each 
+| #            column referring to the corresponding unit cell volume (see next)
+| #          - info file: the structure of the file is:
+| #              - number of off-centered K points at which the frequencies are computed; degree of the polynomial 
+| #                (or spline) fitting the frequencies as function of V; the smooth parameter for spline fitting 
+| #                (if 0., the polinomial fit is selected); the maximum temperature at which the Helmholtz function
+| #                has to be computed 
+| #              - for each K point, number of frequencies listed 
+| #              - for each K-point, weight of the point
+| #              - list of volumes at which frequencies are computed.
+| # ANH:     Anharmonic correction: 
+| #          - number of modes for which the anharmonic correction is required; 
+| #          for each mode:
+| #          - mode progressive number, its Brillouin flag and its degeneracy. 
+| #          A file whose name is anharm_path.txt must be present in the input folder; 
+| #          anharm_path.txt contains the name of the folder where data are stored
+|   
 | STATIC
 | pyrope_static.dat
 | VOLUME
