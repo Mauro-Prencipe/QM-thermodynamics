@@ -48,28 +48,7 @@ Below, an example of input file is shown
 | # CP       powers for the polynomial fit of Cp(T)
 | # ALPHA:   Powers for the polynomial fit of alpha(T) (fixed pressure)
 | # DISP:    Phonon dispersion correction from a supercell calculation
-| #          parameters:
-| #          - Name of the file containing the frequencies
-| #          - Name of the file containing the information for processing the data and the unit cell volumes
-| #            at which frequencies are computed (info file)
-| #          Notes:
-| #          - frequencies' file: off-centered modes only; the first column of the file must contain 
-| #            the degeneracy of the mode; the subsequent columns do contain the frequencies, each 
-| #            column referring to the corresponding unit cell volume (see next)
-| #          - info file: the structure of the file is:
-| #              - number of off-centered K points at which the frequencies are computed; degree of the polynomial 
-| #                (or spline) fitting the frequencies as function of V; the smooth parameter for spline fitting 
-| #                (if 0., the polinomial fit is selected); the maximum temperature at which the Helmholtz function
-| #                has to be computed 
-| #              - for each K point, number of frequencies listed 
-| #              - for each K-point, weight of the point
-| #              - list of volumes at which frequencies are computed.
-| # ANH:     Anharmonic correction: 
-| #          - number of modes for which the anharmonic correction is required; 
-| #          for each mode:
-| #          - mode progressive number, its Brillouin flag and its degeneracy. 
-| #          A file whose name is anharm_path.txt must be present in the input folder; 
-| #          anharm_path.txt contains the name of the folder where data are stored
+| # ANH:     Anharmonic correction
 |   
 | STATIC
 | pyrope_static.dat
