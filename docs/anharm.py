@@ -615,13 +615,9 @@ def spectrum(iv,temp,nline=5,tail=8., head=8., sigma=2., fwhm=2., eta=0., npp=24
         The vertical lines drawn under the spectrum mark the positions
         of the transition frequencies. If the number of lines is greater
         than 3, a color code is associated to such lines;  
-        blue: 
-            transitions involving levels associated to low quantum
-            numbers;
-        green: 
-            transitions at intermediate quantum numbers;
-        red:   
-            transition at high quantum numbers
+        blue - transitions involving levels associated to low quantum numbers;
+        green -transitions at intermediate quantum numbers;
+        red - transition at high quantum numbers
     """
 
  
