@@ -14633,7 +14633,7 @@ Volumes: [114.860943 109.884957 104.662515  97.900625 121.00024  124.910088
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>The energy values ($\epsilon_i$) corresponding to the vibrational levels of the anharmonic oscillator are then used to numerically compute the partition function at a given temperature <em>T</em>:</p>
 $$
-Z = \sum_{i=0}^N e^{\epsilon_i/kT}
+Z = \sum_{i=0}^N e^{-\epsilon_i/kT}
 $$<p>The number ($N$) of levels to be included depends upon the temperature and a check for the convergence of the $Z$ function against $N$ must be performed. The function <strong>check_partition</strong> is used for the purpose. The arguments of the function are the <em>volume index</em> and the temperature; for instance, for the volume we are considering, at T=1000 K:</p>
 
 </div>
