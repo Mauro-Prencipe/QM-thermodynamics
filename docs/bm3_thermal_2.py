@@ -2516,7 +2516,7 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
     
     """
     Computes the bulk modulus from the definition K=-V(dP/dV)_T in a range
-    of temperature values.
+    of temperature values
     
     Args:
         tini:   lower temperature in the range
@@ -2530,11 +2530,11 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
         smooth: smooth parameter for the fit; relevant if type='spline'
         out:    if True, the parameters of the K(T) and V(T) fits are printed
         
-   Keyword Args:
+    Keyword Args:
         fix:    if fix is provided, Kp is kept fixed at the fix value
                 Relevant if noeos=False
                 
-   Note:
+    Note:
         if noeos=False, the pressure at any given volume is calculated 
         from the equation of state. If noeos=True, the pressure is computed
         as the first derivative of the Helmholtz function (at constant
