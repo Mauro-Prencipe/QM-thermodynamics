@@ -253,7 +253,7 @@ def partition(iv, temp, nl=10):
     
     Args:
         v:    volume index (according to the list of volumes specified
-                          in the volumes.dat file)
+              in the volumes.dat file)
         temp: temperature (K)
         nl:   number of energy levels considered in the summation
               (default: 10)  
@@ -270,9 +270,9 @@ def helm(iv, temp):
     """
     Computes the Helmholtz free energy (in hartree)
     
-    Input 
-        iv: volume index (according to the list of volumes specified
-                          in the volumes.dat file) 
+    Args: 
+        iv:   volume index (according to the list of volumes specified
+              in the volumes.dat file) 
         temp: temperature (K)
     """
     z=partition(iv, temp, nl=glob.nlev)
@@ -283,9 +283,9 @@ def check_partition(iv, temp, from_plot=False):
     Checks convergence of the partition function at a given 
     temperature
     
-    Input
-       iv: volume index (according to the list of volumes specified
-                          in the volumes.dat file) 
+    Args:
+       iv:   volume index (according to the list of volumes specified
+             in the volumes.dat file) 
        temp: temperature (k)
     """
     tol_der=0.005
@@ -385,9 +385,9 @@ def helm_fit(temp=300):
     Main function of the program: the produces the final result of
     the F(V,T) surface. 
     
-    Input:
+    Args:
         temp: temperature (in K) used in the test for convergence
-        of the partition function (default: 300 K)
+              of the partition function (default: 300 K)
     """
     start(temp)    
     tl=np.linspace(tmin,tmax,nt)
@@ -502,7 +502,7 @@ def plot_levels(iv, max_lev, qmin=0., qmax=0., tmin=300, tmax=1000, nt=5, \
     Computes and plots vibrational energy levels on top of the
     potential curve of the mode.
     
-    Input:
+    Args:
         iv:          Volume index (select the volume according 
                                    to the input list)
         max_lev:     Number of levels to plot
@@ -516,8 +516,7 @@ def plot_levels(iv, max_lev, qmin=0., qmax=0., tmin=300, tmax=1000, nt=5, \
         chk:         check on the corvengence of the partition function
                      (default: False)
         temp:        temperature for the check of the partition function
-                     (default: 300K)
-        
+                     (default: 300K)   
     """
     
     npoint=200
@@ -597,7 +596,7 @@ def spectrum(iv,temp,nline=5,tail=8., head=8., sigma=2., fwhm=2., eta=0., npp=24
     """
     Computes the spectrum of the anharmonic mode by using a specified peak shape
     
-    Input:
+    Args:
         iv:      Volume index
         temp:    Temperature (K)
         nline:   Number of lines to be considered
