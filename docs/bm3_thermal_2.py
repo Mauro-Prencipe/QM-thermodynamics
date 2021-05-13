@@ -3,7 +3,7 @@
 # Version 2.4.0 18/02/2021
 #
 
-# Comment the following four lines to produce the documentation 
+# Comment the following three lines to produce the documentation 
 # with readthedocs
 
 
@@ -220,8 +220,9 @@ class data_info():
         print("Delta: %3.1f; degree: %2i; left: %3.1f; right: %3.1f, Kp_fix: %s; t_max: %5.2f"\
                % (volume_ctrl.delta, volume_ctrl.degree, volume_ctrl.left, volume_ctrl.right,\
                   volume_ctrl.kp_fix, volume_ctrl.t_max))
-        print("EoS shift: %3.1f; Quad_shrink: %2i; T_dump: %3.1f; Dump fact.: %2.1f" % \
-              (volume_ctrl.shift, volume_ctrl.quad_shrink, volume_ctrl.t_dump, volume_ctrl.dump) )
+        print("EoS shift: %3.1f; Quad_shrink: %2i; T_dump: %3.1f; Dump fact.: %2.1f, T_last %4.1f" % \
+              (volume_ctrl.shift, volume_ctrl.quad_shrink, volume_ctrl.t_dump, volume_ctrl.dump,\
+               volume_ctrl.t_last))
         
         if verbose.flag:
            print("\n--------- Database section ---------")    
@@ -629,6 +630,9 @@ class volume_control_class():
         self.debug=False
         self.upgrade_shift=False
         self.skew=1.
+        self.t_last=0.
+        self.t_last_flag=False
+        self.v_last=None
     def set_degree(self, degree):
         """
         Sets the degree of polynomial used to fit the (P(V)-P0)^2 data. 
@@ -667,7 +671,9 @@ class volume_control_class():
             t_dump: temperature over which a dumping on the shift parameter is
                     applied (default=0.)
             dump: dumping on the shift parameter (shift=shift/dump; default=1.)
-            
+            t_last: if t_last > 10., the last volume computed is used as the 
+                    initial guess value (vini) for the next computation at a
+                    new temperature.       
         """
         self.degree=degree
     def set_delta(self, delta):
@@ -697,10 +703,12 @@ class volume_control_class():
         self.shift=0.    
     def set_t_dump(self,t_dump=0., dump=1.0):
         self.t_dump=t_dump
-        self.dump=dump        
+        self.dump=dump  
+    def set_t_last(self, t_last):
+        self.t_last=t_last
     def set_all(self,degree=2, delta=2., skew=1., shift=0., t_max=500.,\
                 quad_shrink=4, kp_fix=True, upgrade_shift=False, debug=False,\
-                t_dump=0., dump=1.):
+                t_dump=0., dump=1., t_last=0.):
         
         self.degree=degree
         self.delta=delta
@@ -713,6 +721,7 @@ class volume_control_class():
         self.quad_shrink=quad_shrink
         self.upgrade_shift=upgrade_shift
         self.skew=skew
+        self.t_last=t_last
         
 class disp_class():
     """
@@ -983,7 +992,13 @@ class disp_class():
         self.free_disp=disp
         
         self.free_fit_vt()
-          
+        
+    def set_tmin(self,tmin):
+        self.min_t=tmin
+        
+    def set_nt(self,nt):
+        self.nt=nt   
+        
     def free_fit_vt(self):
         
         self.fit_vt_flag=True
@@ -1972,6 +1987,14 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
     vini=new_volume(tt,pp)    
     v_new=vini[0]                # Initial volume from EoS
     
+    if volume_ctrl.t_last_flag:
+       vini=volume_ctrl.v_last
+       
+    if (tt > volume_ctrl.t_last) & (volume_ctrl.t_last > 10.): 
+       volume_ctrl.t_last_flag=True
+       volume_ctrl.shift=0.
+       volume_ctrl.upgrade_shift=False
+       
     if not flag_poly.flag:
         if flag_fit_warning.value:
            print("It is advised to use polynomial fits for 'dir' calculations\n")
@@ -2008,11 +2031,19 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
               print("")
 #           return vini
 
-    if tt > volume_ctrl.t_dump:
-        volume_ctrl.shift=volume_ctrl.shift/volume_ctrl.dump
-        
-    v_list=np.linspace(vini[0]-volume_ctrl.shift - volume_ctrl.delta/volume_ctrl.left,\
+    if volume_ctrl.t_last_flag:
+       if (tt > volume_ctrl.t_last) & (volume_ctrl.t_last > 10.):
+          vvi=volume_ctrl.v_last
+          vplot=vvi
+          v_list=np.linspace(vvi - volume_ctrl.delta/volume_ctrl.left,\
+                       vvi + volume_ctrl.delta/volume_ctrl.right, 24) 
+    else:       
+       if tt > volume_ctrl.t_dump:
+          volume_ctrl.shift=volume_ctrl.shift/volume_ctrl.dump         
+       v_list=np.linspace(vini[0]-volume_ctrl.shift - volume_ctrl.delta/volume_ctrl.left,\
                        vini[0]-volume_ctrl.shift + volume_ctrl.delta/volume_ctrl.right, 24)
+       vplot=vini[0]
+       
     p_list=np.array([])
     for iv in v_list:
         pi=(pressure_dir(tt,iv)-pp)**2
@@ -2051,6 +2082,7 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
           y=0.95*np.max(p_list)
           y2=0.88*np.max(p_list)
           y3=0.81*np.max(p_list)
+          y4=0.74*np.max(p_list)
           plt.figure()
           title="Temperature: "+str(round(tt,2))+" K"
           plt.plot(v_list,p_list)
@@ -2058,9 +2090,11 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
           v_opt="Opt volume:    "+str(vmin.x[0].round(4))
           v_min="Approx volume: "+str(vini[0].round(4))
           v_new="EoS volume:    "+str(v_new.round(4))
+          v_ini="V_ini volume:  "+str(vplot.round(4))
           plt.text(x,y,v_opt,fontfamily='monospace')
           plt.text(x,y2,v_min, fontfamily='monospace')
           plt.text(x,y3,v_new,fontfamily='monospace')
+          plt.text(x,y4,v_ini,fontfamily='monospace')         
           plt.show()
     else:
        if volume_ctrl.debug:
@@ -2068,6 +2102,7 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
           y=0.95*np.max(p_list)
           y2=0.88*np.max(p_list)
           y3=0.81*np.max(p_list)
+          y4=0.74*np.max(p_list)
           plt.figure()
           title="Temperature: "+str(round(tt,2))+" K"
           plt.plot(v_list,p_list)
@@ -2076,9 +2111,11 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
           v_opt="Opt. volume:   "+str(round(vmin,4))
           v_min="Approx volume: "+str(vini[0].round(4))
           v_new="EoS Volume:    "+str(v_new.round(4))
+          v_ini="V_ini volume:  "+str(vplot.round(4))
           plt.text(x,y,v_opt,fontfamily='monospace')
           plt.text(x,y2,v_min, fontfamily='monospace')
           plt.text(x,y3,v_new,fontfamily='monospace')
+          plt.text(x,y4,v_ini,fontfamily='monospace')
           plt.show()
            
     if volume_ctrl.degree > 2:   
@@ -2087,13 +2124,15 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
           print("\n**** WARNING ****")
           print("Optimization in volume_dir not converged; approx. volume returned")
           print("temperature: %5.2f, Volume: %6.3f" % (tt, vini[0]))
-        
+          volume_ctrl.v_last=vini[0]
           vol_opt.off()
-        
+                   
           return vini[0]
        else:
+         volume_ctrl.v_last=vini[0]  
          return vmin.x[0]
-    else:        
+    else:  
+       volume_ctrl.v_last=vmin
        return vmin 
     
 def find_temperature_vp(vv,pp, tmin=100., tmax=1000., prt=True):
@@ -2419,6 +2458,7 @@ def bulk_modulus_p(tt,pp,noeos=False,prt=False,**kwargs):
                used only for the static part, and vibrational
                pressures are obtained from the derivative
                of the F function (pressure_dir function) 
+        prt: if True, results are printed
         fix (optional): optimizes Kp if fix=0., or keeps Kp 
                         fixed if fix=Kp > 0.1. This is relevant
                         if noeos=False
@@ -2473,6 +2513,33 @@ def bulk_modulus_p(tt,pp,noeos=False,prt=False,**kwargs):
 
 def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='poly', \
                          deg=2, smooth=5, out=False, **kwargs):
+    
+    """
+    Computes the bulk modulus from the definition K=-V(dP/dV)_T in a range
+    of temperature values.
+    
+    Args:
+        tini:   lower temperature in the range
+        tfin:   higher temperature in the range
+        nt:     number of points in the [tini, tfin] range
+        pres:   pressure (GPa)
+        noeos:  see note below
+        fit:    if True, a fit of the computed K(T) values is performed
+        type:   type of the fit ('poly', or 'spline')
+        deg:    degree of the fit
+        smooth: smooth parameter for the fit; relevant if type='spline'
+        out:    if True, the parameters of the K(T) and V(T) fits are printed
+        
+   Keyword Args:
+        fix:    if fix is provided, Kp is kept fixed at the fix value
+                Relevant if noeos=False
+                
+   Note:
+        if noeos=False, the pressure at any given volume is calculated 
+        from the equation of state. If noeos=True, the pressure is computed
+        as the first derivative of the Helmholtz function (at constant
+        temperature)    
+    """
 
     l_arg=list(kwargs.items())
     fixpar=False
@@ -2535,7 +2602,7 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
     
     reset_fix()
     
-    if out:
+    if out & fit:
         return fit_par, fit_par_v
 
 def bulk_modulus_adiabat(tt,pp,noeos=False, prt=True,**kwargs):
@@ -5759,7 +5826,7 @@ def anharm_pressure(mode,tmin,tmax,nt,deg=2,dv=2,fit=True, fit_deg=4, prt=True):
         
     nt_plot=50
     t_list=np.linspace(tmin,tmax,nt)
-    v_list=list(volume_dir(it,0,delta=dv,degree=deg) for it in t_list)
+    v_list=list(volume_dir(it,0) for it in t_list)
     p_list=list(anharm_pressure_vt(mode,iv,it,deg=deg,dv=dv,prt=False) for iv, it in zip(v_list, t_list))
     
     if prt:
@@ -5981,7 +6048,7 @@ def reset_flag():
 
 
 
-def user():   
+def user(tmax=1000):   
     data_exp=np.loadtxt(path+'/Angel_exp.txt')
     t_exp=data_exp[:,0]
     idx=np.argsort(t_exp)   
@@ -5990,9 +6057,9 @@ def user():
     t_exp=t_exp[idx]
     b_exp=b_exp[idx]
 
-    t_list=np.linspace(50,1000,40)
+    t_list=np.linspace(50,tmax,40)
     
-    b_par,v_par=bulk_modulus_p_serie(50,980,40,0,noeos=True,fit=True,type='spline',\
+    b_par,v_par=bulk_modulus_p_serie(50,tmax,36,0,noeos=True,fit=True,type='spline',\
                                deg=3,smooth=5,out=True)
     
     b_list=(b_par(tt).item(0) for tt in t_list)
