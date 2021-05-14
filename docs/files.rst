@@ -14,7 +14,7 @@ List of keywords:
 - ALPHA   (**optional**):   powers of a polynomial for the fitting of thermal expansion as a function of *T* 
 - ANH     (**optional**):   input for anharmonic calculation (see the `tutorial <https://qm-thermodynamics.readthedocs.io/en/main/_static/anharm.html>`_)
 - CP      (**optional**):   powers of a polynomial for the fitting of specific heat (at *P* constant) as a function of *T*
-- DISP    (**optional**):   input for phonon dispersion correction
+- DISP    (**optional**):   input for phonon dispersion correction (see the `tutorial <https://qm-thermodynamics.readthedocs.io/en/main/_static/Dispersion.html>`_)
 - END     (**mandatory**):  end of keywords list
 - EXCLUDE (**optional**):   specifies a list of modes to be excluded from the computation of the free energy
 - EXP     (**optional**):   file name of experimental Cp and S data from the literature, for comparison with computed results
