@@ -34,7 +34,9 @@ Optional files:
    
 7. Files for the phonon dispersion correction (see the `tutorial <https://qm-thermodynamics.readthedocs.io/en/main/_static/Dispersion.html>`_)
 
-8. A **quick_start.txt** file in the master folder. This file contains the name of the folder of the data to be processed. If this file exists, 
+8. Files for the anharmonic correction (see the `tutorial <https://qm-thermodynamics.readthedocs.io/en/main/_static/anharm.html>`_)
+
+9. A **quick_start.txt** file in the master folder. This file contains the name of the folder of the data to be processed. If this file exists, 
    the program immediately proceeds to read the relevant data files, without having to issue the *read_file* and the *static* commands
 
 Note:
