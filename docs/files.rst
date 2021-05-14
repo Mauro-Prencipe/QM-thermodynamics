@@ -49,6 +49,7 @@ Below, an example of input file is shown
 | # ALPHA:   Powers for the polynomial fit of alpha(T) (fixed pressure)
 | # DISP:    Phonon dispersion correction from a supercell calculation
 | # ANH:     Anharmonic correction
+| # DISP     Dispersion correction
 |   
 | STATIC
 | pyrope_static.dat
