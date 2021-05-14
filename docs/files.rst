@@ -12,7 +12,7 @@ Keywords can be inserted in any order and must be followed by the parameters the
 List of keywords:
 
 - ALPHA   (**optional**):   powers of a polynomial for the fitting of thermal expansion as a function of *T* 
-- ANH     (**optional**):   input for anharmonic calculation (see the `tutorial <https://qm-thermodynamics.readthedocs.io/en/main/_static/anharm.html>`_
+- ANH     (**optional**):   input for anharmonic calculation (see the `tutorial <https://qm-thermodynamics.readthedocs.io/en/main/_static/anharm.html>`_)
 - CP      (**optional**):   powers of a polynomial for the fitting of specific heat (at *P* constant) as a function of *T*
 - DISP    (**optional**):   input for phonon dispersion correction
 - END     (**mandatory**):  end of keywords list
