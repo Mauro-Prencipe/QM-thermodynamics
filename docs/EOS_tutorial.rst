@@ -27,3 +27,7 @@ notebooks offers a particularly convenient environment to run the code in intera
 `Anharmonic correction`_
 
 .. _Anharmonic correction: _static/anharm.html
+
+`Phonon dispersion`_
+
+.. _Phonon dispersion: _static/Dispersion.html
