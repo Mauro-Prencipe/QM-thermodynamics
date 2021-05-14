@@ -8,3 +8,7 @@ Main Features and more advanced calculations
 `Anharmonic correction`_
 
 .. _Anharmonic correction: _static/anharm.html
+
+`Phonon dispersion`_
+
+.. _Phonon dispersion: _static/Dispersion.html
