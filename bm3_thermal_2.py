@@ -7,9 +7,9 @@
 # with readthedocs
 
 
-from IPython import get_ipython
-get_ipython().magic('cls')
-get_ipython().magic('reset -sf')
+# from IPython import get_ipython
+# get_ipython().magic('cls')
+# get_ipython().magic('reset -sf')
 
 import datetime
 import os  
