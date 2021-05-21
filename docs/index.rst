@@ -24,7 +24,7 @@ thermal dependence; the thermal expansion and the specific heat (at constant pre
 dependences; the entropy at the reference state (T=298.15K, P=1 bar). 
 
 Thermodynamic QM data can then be used to evaluate the Gibbs free energy at any temperature and pressure, 
-by following algorithms equivalent to those implemented in the `Perplex package <https://https://www.perplex.ethz.ch/> `_ .
+by following algorithms equivalent to those implemented in the `Perplex package <https://www.perplex.ethz.ch/> `_ .
 
 All of the properties are computed by constructing the Helmholtz free energy [F(V,T)] as a function of volume
 (V) and temperature (T). At any given T, F is fitted in a V range by a 3^order volume-integrated Birch-Murnaghan
