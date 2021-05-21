@@ -64,8 +64,9 @@ in the sections `Input file <https://qm-thermodynamics.readthedocs.io/en/main/fi
 `required files <https://qm-thermodynamics.readthedocs.io/en/main/required_files.html>`_ on this site. 
 
 The input files used in the `EoS tutorial <_static/basic_eos_tutorial.html>`_ refer to the example on *pyrope* and can be found on 
-`Github <https://github.com/Mauro-Prencipe/QM-thermodynamics/tree/main/pyrope>`_ . The notebook of such tutorial can also be run 
-interactively on the `Binder site <https://hub.gke2.mybinder.org/user/mauro-prencipe-qm-thermodynamics-ulinvoz9/notebooks/basic_eos_tutorial.ipynb>`_ .
+`Github <https://github.com/Mauro-Prencipe/QM-thermodynamics/tree/main/pyrope>`_ . The notebook of such tutorial can also be view 
+`here <https://nbviewer.jupyter.org/github/Mauro-Prencipe/QM-thermodynamics/blob/main/basic_eos_tutorial.ipynb>`_ , on the nbviewer
+site and, from there, compiled and interactively used on Binder (click on the *Execute on Binder* icon).
 
 
 .. toctree::
