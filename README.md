@@ -14,3 +14,13 @@ The language of the program is Python. The files in this repository are:
 - mineral_data.py:  Perplex like module
 - anharm.py:        module for computation of intrinsic anharmonicity
 - parame.py:        definition of computational parameters used in the main module
+- quick_start.txt:  input file
+- perplex_db.dat:   Perplex like database
+
+The *pyrope* folder contains the input files to run the program on a selected example (the pyrope mineral)
+
+The input description, explanations and tutorials can be found `here <https://qm-thermodynamics.readthedocs.io/en/main/>`_ 
+
+
+
+
