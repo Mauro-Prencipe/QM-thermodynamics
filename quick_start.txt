@@ -1,0 +1,23 @@
+# Structure of the file:
+# Name of the folder containing data
+# List of instructions to be executed
+# The file MUST be closed by the keyword END
+# Lines beginning with '#' or blanck lines are ignored
+
+pyrope
+
+# quarzo_2020
+
+#disp.free_exclude([0])
+#disp.free_fit_ctrl(degree=6)
+#disp.eos_on()
+
+# volume_ctrl.set_all(upgrade_shift=True, t_max=800., quad_shrink=8, t_dump=900., dump=1.1)
+# volume_ctrl.debug_on()
+# volume_ctrl.upgrade_shift_on()
+# volume_ctrl.set_tmax(800.)
+# volume_ctrl.set_shrink(8)
+# volume_ctrl.set_t_dump(t_dump=900., dump=1.1)
+# volume_ctrl.set_t_last(850.)
+
+END
