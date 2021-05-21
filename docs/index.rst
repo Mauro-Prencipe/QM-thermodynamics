@@ -25,8 +25,8 @@ dependences; the entropy at the reference state (T=298.15K, P=1 bar).
 
 .. image:: _images/react.png
    :height: 2400 px
-   :width:  3600 px
-   :scale: 10 %
+   :width: 3600 px 
+   :scale: 30 %
 
 Thermodynamic QM data can then be used to evaluate the Gibbs free energy at any temperature and pressure, 
 by following algorithms equivalent to those implemented in the `Perplex package <https://www.perplex.ethz.ch/>`_ .
@@ -39,7 +39,7 @@ The program can be loaded and run in a normal Python console as well as in any o
 `Spyder <https://www.spyder-ide.org>`_  
 
 .. image:: _images/spyderimage.svg
-   :scale: 50 %
+   :scale: 80 %
 
 `Jupyter Notebooks <https://jupyter.org/>`_ or Jupyter Labs are convenient environments, too. 
  
