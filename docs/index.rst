@@ -34,6 +34,7 @@ The program can be loaded and run in a normal Python console as well as in any o
 `Spyder <https://www.spyder-ide.org>`_  
 
 .. image:: _images/spyderimage.svg
+   :scale: 80 %
 
 `Jupyter Notebooks <https://jupyter.org/>`_ or Jupyter Labs are convenient environments, too. 
  
