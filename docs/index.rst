@@ -60,7 +60,8 @@ on the `Binder site <https://gke.mybinder.org/>`_ and the notebook is executed (
 build the image and run it on the server).
 
 Information about the input required to run the program can be found in the `EoS tutorial <_static/basic_eos_tutorial.html>`_ , as well as 
-in the sections `files <./files.rst>`_ and `required files <./required_files.rst>`_ on this site. 
+in the sections `Input <https://qm-thermodynamics.readthedocs.io/en/main/files.html>`_ and 
+`required files <https://qm-thermodynamics.readthedocs.io/en/main/required_files.html>`_ on this site. 
 
 
 .. toctree::
