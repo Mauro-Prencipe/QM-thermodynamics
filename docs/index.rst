@@ -18,18 +18,26 @@ unit cell volume.
 *Ab initio* data are processed within the general framework of *Statistical Thermodynamics*, within the
 limit of the *quasi-harmonic approximation* (QHA). 
 
+Properties like:
+ 
+- bulk modulus, its pressure derivative and its thermal dependence; 
+- thermal expansion and its temperature dependence; 
+- specific heat (at constant pressure) and its temperature dependences; 
+- entropy at the reference state (T=298.15K, P=1 bar)
+
+can be computed from QM data, and can then be used to evaluate the Gibbs free energy at any temperature and pressure, 
+by following algorithms equivalent to those implemented in the `Perplex package <https://www.perplex.ethz.ch/>`_ .
+
 Equilibria between mineral species (only end-members can be considered) can be evaluated starting from 
-thermodynamic data computed at the QM level. Such QM data concern the bulk modulus, its pressure derivative and its 
-thermal dependence; the thermal expansion and the specific heat (at constant pressure) and their temperature 
-dependences; the entropy at the reference state (T=298.15K, P=1 bar). 
+the thermodynamic data thus derived. Here is an example where the equilibrium between kyanite and andalusite has 
+been determined in a *P/T* field: thermodynamics data for kyanite are computed at the QM level, whereas 
+those for andalusite are from literature 
+(`Holland & Powell <https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1525-1314.1998.00140.x>`_ )
 
 .. image:: _images/react.png
    :height: 2400 px
    :width: 3600 px 
    :scale: 10 %
-
-Thermodynamic QM data can then be used to evaluate the Gibbs free energy at any temperature and pressure, 
-by following algorithms equivalent to those implemented in the `Perplex package <https://www.perplex.ethz.ch/>`_ .
 
 All of the properties are computed by constructing the Helmholtz free energy [F(V,T)] as a function of volume
 (V) and temperature (T). At any given T, F is fitted in a V range by a 3^order volume-integrated Birch-Murnaghan
