@@ -24,6 +24,7 @@ thermal dependence; the thermal expansion and the specific heat (at constant pre
 dependences; the entropy at the reference state (T=298.15K, P=1 bar). 
 
 .. image:: _images/react.png
+   :height: 2400 px
    :scale: 10 %
 
 Thermodynamic QM data can then be used to evaluate the Gibbs free energy at any temperature and pressure, 
