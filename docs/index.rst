@@ -59,6 +59,9 @@ Once the notebook has been loaded in nbviewer, by clicking on the **Execute on B
 on the `Binder site <https://gke.mybinder.org/>`_ and the notebook is executed (though it may require some minutes to 
 build the image and run it on the server).
 
+Information about the input required to run the program can be found in the `EoS tutorial <_static/basic_eos_tutorial.html>`_ , as well as 
+in the sections `files <files.rst>`_ and `required files <_static/required_files.html>`_ on this site. 
+
 
 .. toctree::
    :maxdepth: 3
