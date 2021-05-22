@@ -81,6 +81,8 @@ site and, from there, compiled and interactively used on Binder (click on the *E
    Main_features
    EOS_tutorial
    Update
+   
+   Citation_contact
 
 * :ref:`genindex`
 * :ref:`search`
