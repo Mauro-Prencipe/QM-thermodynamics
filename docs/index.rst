@@ -85,6 +85,9 @@ site and, from there, compiled and interactively used on Binder (click on the *E
    
    Citation
    Contact
+   
+.. image:: https://zenodo.org/badge/352697078.svg
+   :target: https://zenodo.org/badge/latestdoi/352697078
 
 * :ref:`genindex`
 * :ref:`search`
