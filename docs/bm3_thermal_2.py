@@ -4546,7 +4546,7 @@ def freq_poly_p(ifr,tt=300., p0=0., plot=True, prt=True, **kwargs):
         tt: temperature (K)
         pp: pressure (GPa)
         
-    Keyword Args::
+    Keyword Args:
         fix (optional): Kp value fixed to *fix* if *fix* > 0.1
      
     Note:
@@ -6045,50 +6045,6 @@ def reset_flag():
     exclude.restore()
     if supercell.flag:
         supercell.reset()
-
-
-
-def user(tmax=1000):   
-    data_exp=np.loadtxt(path+'/Angel_exp.txt')
-    t_exp=data_exp[:,0]
-    idx=np.argsort(t_exp)   
-    b_exp=data_exp[:,1]
-    
-    t_exp=t_exp[idx]
-    b_exp=b_exp[idx]
-
-    t_list=np.linspace(50,tmax,40)
-    
-    b_par,v_par=bulk_modulus_p_serie(50,tmax,36,0,noeos=True,fit=True,type='spline',\
-                               deg=3,smooth=5,out=True)
-    
-    b_list=(b_par(tt).item(0) for tt in t_list)
-    b_list=list(b_list)
-    
-    b_calc=(b_par(tt).item(0) for tt in t_exp)
-    b_calc=list(b_calc)
-    
-    v_calc=(v_par(tt).item(0) for tt in t_exp)
-    v_calc=list(v_calc)
-
-    delta=b_calc-b_exp
-    delta=np.array(delta).round(1)
-        
-    plt.figure()
-    plt.plot(t_list,b_list,label="Calculated")
-    plt.plot(t_exp,b_exp,"k*",label="Experimental")
-    plt.xlabel("Temperature (K)")
-    plt.ylabel("Bulk Modulus (GPa)")
-    plt.xlim(50, 1000)
-    plt.ylim(0,45)
-    plt.legend(frameon=False)
-    plt.show()
-
-    serie=(t_exp, np.array(b_calc).round(1), b_exp, delta, np.array(v_calc).round(3))
-    df_out=pd.DataFrame(serie, index=['T', 'CALC', 'EXP', 'Delta', 'Vol'])
-    df_out=df_out.T
-    print(df_out.to_string(index=False))   
-
      
 def remark(string):
     print(string)
