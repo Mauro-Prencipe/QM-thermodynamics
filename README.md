@@ -20,3 +20,5 @@ The language of the program is Python. The files in this repository are:
 The *pyrope* folder contains the input files to run the program on a selected example (the pyrope mineral)
 
 The input description, explanations and tutorials can be found [here](https://qm-thermodynamics.readthedocs.io/en/main/) 
+
+[![DOI](https://zenodo.org/badge/352697078.svg)](https://zenodo.org/badge/latestdoi/352697078)
