@@ -82,7 +82,7 @@ site and, from there, compiled and interactively used on Binder (click on the *E
    EOS_tutorial
    Update
    
-   Citation_contact
+   Citation
 
 * :ref:`genindex`
 * :ref:`search`
