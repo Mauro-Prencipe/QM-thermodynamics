@@ -1150,7 +1150,7 @@ class volume_delta_class():
            Args:
                vol: if vol > 0.1, computes delta for the volume vol;
                     if vol < 0.1, vol is set to the default value stored
-                                  in the v0 variable
+                    in the v0 variable.
            """
            
            if vol < 0.1:
