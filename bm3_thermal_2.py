@@ -2565,6 +2565,7 @@ def bulk_modulus_p(tt,pp,noeos=False,prt=False,**kwargs):
            p_i=pressure_dir(tt,iv)
            
         press_range=np.append(press_range,p_i)
+        
     press_fit=np.polyfit(v_range,press_range,degree)
     b_poly=np.polyder(press_fit,1)
     b_val=np.polyval(b_poly,vol)
@@ -6106,7 +6107,8 @@ def reset_flag():
     
     flag_list=['disp.flag', 'disp.input', 'kieffer.flag', 'kieffer.input', 'anharm.flag',
                'lo.flag', 'flag_spline.flag', 'flag_poly.flag', 'f_fix.flag', 'verbose.flag',
-               'bm4.flag', 'disp.eos_flag', 'disp.fit_vt_flag', 'static_range.flag']
+               'bm4.flag', 'disp.eos_flag', 'disp.fit_vt_flag', 'static_range.flag',
+               'vd.flag']
     
     for iflag in flag_list:      
         r_flag=iflag+'=False'

@@ -19,9 +19,10 @@ degree_alpha=4
 # K at a given pressure, by direct numerical derivative with
 # respect to V. Used by the functions bulk_modulus_p, grun_mode_vol
 # and pressure_dir
-delta_v=1.
+delta_v=0.5
 nump_v=9
 degree_v=3
+v_frac=0.0015
 
 # Number of points in the volume range for plotting the function 
 # F(V) in eos_temp
