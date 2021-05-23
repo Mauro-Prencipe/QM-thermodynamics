@@ -3,7 +3,7 @@
 # Version 2.4.0 18/02/2021
 #
 
-# Comment the following four lines to produce the documentation 
+# Comment the following three lines to produce the documentation 
 # with readthedocs
 
 
@@ -1117,6 +1117,66 @@ class disp_class():
     def free_func(self,temp):
         free_disp=np.polyval(self.fit,temp)
         return free_disp
+    
+class volume_delta_class():
+      """
+      Defines a suitable V range for the numerical evaluation of the
+      derivatives of any quantity with respect to V. 
+      
+      The V-range (delta) is obtained by multiplying the static equilibrium 
+      volume (V0; which is computed by the static function) with a factor read
+      from the parame.py parameters' file; such parameter (frac) is stored
+      in the vd.frac variable and can also be set by the set_frac method.
+      
+      The method set_delta computes delta, provided a volume is input.
+      
+      When delta is computed, the vd.flag is set to True and its values 
+      is used in several functions computing derivatives. On the contrary, 
+      if vd.flag is set to False (use the method off), the delta 
+      value is read from the parameters' file (pr.delta_v).
+      """
+
+      def __init__(self):
+           self.v0=None
+           self.flag=False
+           self.delta=None
+           self.frac=pr.v_frac
+        
+      def set_delta(self,vol=0.):
+           """
+           Sets the V-delta value for the calculation of derivatives with
+           respect to V.
+          
+           Args:
+               vol: if vol > 0.1, computes delta for the volume vol;
+                    if vol < 0.1, vol is set to the default value stored
+                                  in the v0 variable
+           """
+           
+           if vol < 0.1:
+              if self.v0 != None:
+                 vv=self.v0
+                 self.flag=True
+              else:
+                 war1="Warning: No volume provided for the set_delta method\n"
+                 war2="         The delta value is read from the parameters file"
+                 war=war1+war2+": %5.4f"                 
+                 print(war % pr.delta_v)
+                 self.flag=False
+           else:
+                 self.delta=vol*self.frac
+                 self.flag=True
+                 self.v0=vol
+        
+      def set_frac(self,frac):
+           self.frac=frac
+           
+      def on(self):
+          self.flag=True
+        
+      def off(self):
+           self.flag=False
+        
 
 # reads in data file. It requires a pathname to the folder
 # containing data
@@ -1931,8 +1991,12 @@ def pressure_dir(tt,vv):
     
     deg=pr.degree_v
     
-    vmin=vv-pr.delta_v/2.
-    vmax=vv+pr.delta_v/2.
+    if not vd.flag:
+       vmin=vv-pr.delta_v/2.
+       vmax=vv+pr.delta_v/2.
+    else:
+       vmin=vv-vd.delta/2.
+       vmax=vv+vd.delta/2. 
     
     v_range=np.linspace(vmin,vmax,pr.nump_v)
     f_list=np.array([])
@@ -2481,8 +2545,12 @@ def bulk_modulus_p(tt,pp,noeos=False,prt=False,**kwargs):
           vol=new_volume(tt,pp)[0] 
     else:
        vol=volume_dir(tt,pp)
-         
-    delta=pr.delta_v
+     
+    if not vd.flag:   
+       delta=pr.delta_v
+    else:
+       delta=vd.delta
+       
     numv=pr.nump_v
     degree=pr.degree_v
     v_range=np.linspace(vol-delta/2.,vol+delta/2.,numv)
@@ -2516,7 +2584,7 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
     
     """
     Computes the bulk modulus from the definition K=-V(dP/dV)_T in a range
-    of temperature values.
+    of temperature values
     
     Args:
         tini:   lower temperature in the range
@@ -2530,11 +2598,11 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
         smooth: smooth parameter for the fit; relevant if type='spline'
         out:    if True, the parameters of the K(T) and V(T) fits are printed
         
-   Keyword Args:
+    Keyword Args:
         fix:    if fix is provided, Kp is kept fixed at the fix value
                 Relevant if noeos=False
                 
-   Note:
+    Note:
         if noeos=False, the pressure at any given volume is calculated 
         from the equation of state. If noeos=True, the pressure is computed
         as the first derivative of the Helmholtz function (at constant
@@ -2725,6 +2793,8 @@ def static(plot=False, vmnx=[0., 0.]):
     info.k0_static=k_gpa
     info.kp_static=kp
     info.v0_static=v0
+    
+    vd.set_delta(v0)
     
     vol_min=np.min(volume)
     vol_max=np.max(volume)
@@ -4546,7 +4616,7 @@ def freq_poly_p(ifr,tt=300., p0=0., plot=True, prt=True, **kwargs):
         tt: temperature (K)
         pp: pressure (GPa)
         
-    Keyword Args::
+    Keyword Args:
         fix (optional): Kp value fixed to *fix* if *fix* > 0.1
      
     Note:
@@ -4930,7 +5000,12 @@ def grun_mode_vol(ifr,vv, method='poly',plot=False):
         Mode-gamma Gruneisen parameter and the frequency of the mode at the 
         volume vv
     """
-    v_range=np.linspace(vv-pr.delta_v,vv+pr.delta_v,pr.nump_v)
+    
+    if not vd.flag:
+       v_range=np.linspace(vv-pr.delta_v,vv+pr.delta_v,pr.nump_v)
+    else:
+       v_range=np.linspace(vv-vd.delta,vv+vd.delta,pr.nump_v) 
+        
     f_list=np.array([])
     for iv in v_range:
         if flag_poly.flag_stack and method=='poly':
@@ -4948,7 +5023,12 @@ def grun_mode_vol(ifr,vv, method='poly',plot=False):
     ffit=np.polyval(fit_f,vv)
     
     if plot:
-       v_fit_list=np.linspace(vv-pr.delta_v,vv+pr.delta_v,40)
+        
+       if not vd.flag:
+          v_fit_list=np.linspace(vv-pr.delta_v,vv+pr.delta_v,40)
+       else:
+          v_fit_list=np.linspace(vv-vd.delta,vv+vd.delta,40) 
+          
        f_poly_list=np.polyval(fit_f,v_fit_list)
        fig=plt.figure()
        ax=fig.add_subplot(111)
@@ -6045,50 +6125,6 @@ def reset_flag():
     exclude.restore()
     if supercell.flag:
         supercell.reset()
-
-
-
-def user(tmax=1000):   
-    data_exp=np.loadtxt(path+'/Angel_exp.txt')
-    t_exp=data_exp[:,0]
-    idx=np.argsort(t_exp)   
-    b_exp=data_exp[:,1]
-    
-    t_exp=t_exp[idx]
-    b_exp=b_exp[idx]
-
-    t_list=np.linspace(50,tmax,40)
-    
-    b_par,v_par=bulk_modulus_p_serie(50,tmax,36,0,noeos=True,fit=True,type='spline',\
-                               deg=3,smooth=5,out=True)
-    
-    b_list=(b_par(tt).item(0) for tt in t_list)
-    b_list=list(b_list)
-    
-    b_calc=(b_par(tt).item(0) for tt in t_exp)
-    b_calc=list(b_calc)
-    
-    v_calc=(v_par(tt).item(0) for tt in t_exp)
-    v_calc=list(v_calc)
-
-    delta=b_calc-b_exp
-    delta=np.array(delta).round(1)
-        
-    plt.figure()
-    plt.plot(t_list,b_list,label="Calculated")
-    plt.plot(t_exp,b_exp,"k*",label="Experimental")
-    plt.xlabel("Temperature (K)")
-    plt.ylabel("Bulk Modulus (GPa)")
-    plt.xlim(50, 1000)
-    plt.ylim(0,45)
-    plt.legend(frameon=False)
-    plt.show()
-
-    serie=(t_exp, np.array(b_calc).round(1), b_exp, delta, np.array(v_calc).round(3))
-    df_out=pd.DataFrame(serie, index=['T', 'CALC', 'EXP', 'Delta', 'Vol'])
-    df_out=df_out.T
-    print(df_out.to_string(index=False))   
-
      
 def remark(string):
     print(string)
@@ -6099,7 +6135,7 @@ def main():
     global flag_fit_warning, flag_volume_warning, flag_volume_max, flag_warning
     global flag_view_input, flag_dir, f_fix, vol_opt, alpha_opt, info, lo, gamma_fit
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
-    global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl
+    global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
     
     ctime=datetime.datetime.now()
     version="2.4.0 - 18/02/2021"
@@ -6119,6 +6155,7 @@ def main():
     al_power_list=(0, 1, -1, -2, -0.5)
     cp_power_list=(0, 1, -1, 2, -2, 3, -3, -0.5)
     
+    vd=volume_delta_class()
     flag_fit_warning=flag(True)
     flag_volume_warning=flag(True) 
     flag_volume_max=flag(False)     
@@ -6143,7 +6180,7 @@ def main():
     disp=disp_class()
     volume_correction=vol_corr_class()
     volume_ctrl=volume_control_class()
-    
+      
     vol_opt.on()
     alpha_opt.on()    
     
