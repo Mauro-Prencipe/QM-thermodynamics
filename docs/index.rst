@@ -84,10 +84,16 @@ site and, from there, compiled and interactively used on Binder (click on the *E
    
 .. toctree::
    :maxdepth: 3
-   :caption: Contact and citation   
-   
+   :caption: Contact and citation 
+  
    Citation
    Contact
+   
+.. toctree::
+   :maxdepth: 3
+   :caption: Download
+   
+   download
    
 .. image:: https://zenodo.org/badge/352697078.svg
    :target: https://zenodo.org/badge/latestdoi/352697078
