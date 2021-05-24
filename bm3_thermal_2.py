@@ -2095,12 +2095,13 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
               print("")
 #           return vini
 
+    vvi=vini
     if volume_ctrl.t_last_flag:
        if (tt > volume_ctrl.t_last) & (volume_ctrl.t_last > 10.):
           vvi=volume_ctrl.v_last
-          vplot=vvi
-          v_list=np.linspace(vvi - volume_ctrl.delta/volume_ctrl.left,\
-                       vvi + volume_ctrl.delta/volume_ctrl.right, 24) 
+       vplot=vvi
+       v_list=np.linspace(vvi - volume_ctrl.delta/volume_ctrl.left,\
+              vvi + volume_ctrl.delta/volume_ctrl.right, 24)
     else:       
        if tt > volume_ctrl.t_dump:
           volume_ctrl.shift=volume_ctrl.shift/volume_ctrl.dump         
