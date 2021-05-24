@@ -73,7 +73,7 @@ site and, from there, compiled and interactively used on Binder (click on the *E
 
 .. toctree::
    :maxdepth: 3
-   :caption: Table of Contents
+   :caption: Input description
    :name: mastertoc
 
    files
@@ -82,7 +82,9 @@ site and, from there, compiled and interactively used on Binder (click on the *E
    EOS_tutorial
    Update
    
-   
+.. toctree::
+   :maxdepth: 3
+   :caption: Contact and citation   
    Citation
    Contact
    
