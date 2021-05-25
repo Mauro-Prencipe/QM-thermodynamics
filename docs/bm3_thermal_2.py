@@ -159,12 +159,14 @@ class data_info():
                 print("Kp fixed")
                 
         if exclude.ex_mode != []:
-            print("\nZone center excluded modes: %s" % str(exclude.ex_mode))
+            uniq=np.unique(exclude.ex_mode)
+            print("\nZone center excluded modes: %s" % str(uniq))
         else:
             print("\nNo zone center excluded modes")
             
         if disp.ex_flag:
-            print("Off center excluded modes: %s" % str(disp.excluded_list))
+            uniq=np.unique(disp.excluded_list)
+            print("Off center excluded modes: %s" % str(uniq))
         else:
             print("No off center excluded modes")
         
@@ -562,7 +564,8 @@ class anh_class():
     def off(self):
         self.flag=False
         exclude.restore()
-        disp.free_exclude_restore()
+        if disp.input_flag: 
+           disp.free_exclude_restore()
         print("Anharmonic correction is turned off")
         print("Warning: all the excluded modes are restored")
     def on(self):
@@ -571,7 +574,7 @@ class anh_class():
         for im, ib in zip(anharm.mode, anharm.brill):
             if ib == 0:
                exclude.add([im])
-            else:
+            elif disp.input_flag:
                disp.free_exclude([im])
                self.flag_brill=True
                
@@ -745,6 +748,7 @@ class disp_class():
         off-center phonon modes.                                             
     """
     def __init__(self):
+        self.input_flag=False
         self.flag=False
         self.eos_flag=False
         self.freq=None
@@ -777,7 +781,10 @@ class disp_class():
            else:
               print("Only 1 volume found in the 'disp' files; NO disp_eos possible")
         else:
-           print("Phonon dispersion is not on; use disp.on() to activate")
+           if self.input_flag: 
+              print("Phonon dispersion is not on; use disp.on() to activate")
+           else:
+              print("No input of dispersion data; eos_on ignored")
     def eos_off(self):
         self.eos_flag=False
         print("No phonon dispersion correction for bulk_dir computation")
@@ -887,6 +894,9 @@ class disp_class():
             to be recomputed by the free_fit_vt method
         """
       
+        if not self.input_flag:
+            print("no input of dispersion data")
+            return
         self.ex_flag=True
         self.excluded_list=ex_list
         print("Off center modes excluded: ", self.excluded_list)
@@ -991,7 +1001,8 @@ class disp_class():
         self.free_nt=nt
         self.free_disp=disp
         
-        self.free_fit_vt()
+        if self.input_flag:
+           self.free_fit_vt()
         
     def set_tmin(self,tmin):
         self.min_t=tmin
@@ -1155,8 +1166,8 @@ class volume_delta_class():
            
            if vol < 0.1:
               if self.v0 != None:
-                 vv=self.v0
                  self.flag=True
+                 self.delta=self.frac*self.v0
               else:
                  war1="Warning: No volume provided for the set_delta method\n"
                  war2="         The delta value is read from the parameters file"
@@ -1302,6 +1313,7 @@ def read_file(data_path):
                     flag_static_vol=True                   
                 flag_super=True
             elif l0=='DISP':
+                disp.input_flag=True
                 disp.flag=True
                 disp.input=True
                 disp_file=data_path+'/'+fi.readline()
@@ -2164,6 +2176,8 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
     else:
        if volume_ctrl.debug:
           x=vmin
+          xmin=np.min(v_list)
+          x=1.005*xmin
           y=0.95*np.max(p_list)
           y2=0.88*np.max(p_list)
           y3=0.81*np.max(p_list)
