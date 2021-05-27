@@ -207,6 +207,11 @@ class data_info():
            else:
                print("\nThe phonon dispersion correction is not used for the computation")
                print("of the bulk modulus")
+           if disp.thermo_vt_flag & (disp.nset > 1):
+               print("\nVT-phonon dispersion correction to the thermodynamic properties")
+           elif (not disp.thermo_vt_flag) & (disp.nset > 1):
+               print("\nT-phonon dispersion correction to the thermodynamic properties")
+               print("Use disp.thermo_vt_on() to activate")
             
         if lo.flag:
             out_lo=(lo.mode, lo.split)
@@ -741,7 +746,15 @@ class disp_class():
     Note:
         To apply the phonon dispersion correction to computation of an equation
         of state, the method eos_on() must be invoked [the method eos_off() switches
-        it off].   
+        it off]. In this case, more than one volume must be present in the input
+        file for dispersion.
+        
+    Note:
+        If phonon frequencies are computed for several values of the unit cell volume,
+        in order to apply a VT-phonon dispersion correction to thermodynamic properties,
+        the method thermo_vt_on() must be invoked [the method thermo_vt_off() switches it off].
+        On the contrary, a T-phonon dispersion correction is applied (it is assumed that
+        phonon frequencies do not change with volume).          
 
     Note:
         The method free_fit_vt() must be used to get the F(V,T) function for
@@ -751,6 +764,7 @@ class disp_class():
         self.input_flag=False
         self.flag=False
         self.eos_flag=False
+        self.thermo_vt_flag=False
         self.freq=None
         self.deg=None    
         self.fit_type=None
@@ -788,6 +802,18 @@ class disp_class():
     def eos_off(self):
         self.eos_flag=False
         print("No phonon dispersion correction for bulk_dir computation")
+        
+    def thermo_vt_on(self):
+        if self.nset > 1:
+           self.thermo_vt_flag=True
+           print("VT-dispersion correction of thermodynamic properties\n")
+        else:
+           print("One volume only found in the DISP file")
+    
+    def thermo_vt_off(self):
+        self.thermo_vt_flag=False
+        print("T-dispersion correction of thermodynamic properties")
+        print("No volume dependence considered")
         
     def freq_spline_fit(self):
         """
@@ -3040,12 +3066,12 @@ def free_fit_vt(tt,vv):
         free_k=free_k*zu*apfu/(avo*conv)
         tot=tot+free_k
   
-    if disp.flag and disp.eos_flag:
+    if disp.flag and (disp.eos_flag or disp.thermo_vt_flag):
         
         if not disp.fit_vt_flag:
             disp.free_fit_vt()
             print("\n**** INFORMATION ****")
-            print("The V,T-fit of the phonon dispersion surface was not done")
+            print("The V,T-fit of the phonon dispersion surface was not prepared")
             print("it has been perfomed with default values of the relevant parameters")
             print("Use the disp.free_fit_vt function to redo with new parameters\n")
         
@@ -3193,9 +3219,12 @@ def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
        
     if disp.flag:
         disp_l=[]
-        disp.free_fit(disp.temp,vv,disp=False)
+        disp.free_fit(disp.temp,vv,disp=False)          
         for i_t in t_range:
-            idf=disp.free_func(i_t)
+            if not disp.thermo_vt_flag:
+               idf=disp.free_func(i_t)
+            else:
+               idf=disp.free_vt(i_t,vv)
             disp_l=np.append(disp_l,idf)
         free_f=(free_f+disp_l)/(disp.molt+1)
             
@@ -4035,7 +4064,10 @@ def gibbs_p(tt,pp,**kwargs):
         f_energy=free_v(tt,vol[0])
     
     if disp.flag:
-        f_disp=disp.free_func(tt)+v_bm3(vol[0],*popt)*disp.molt
+        if not disp.themo_vt_flag:
+           f_disp=disp.free_func(tt)+v_bm3(vol[0],*popt)*disp.molt
+        else:
+           f_disp=disp.free_vt(tt,vol)+v_bm3(vol[0],*popt)*disp.molt 
         f_energy=(f_energy+f_disp)/(disp.molt+1)
         
     fact=1.
@@ -6123,7 +6155,7 @@ def reset_flag():
     flag_list=['disp.flag', 'disp.input', 'kieffer.flag', 'kieffer.input', 'anharm.flag',
                'lo.flag', 'flag_spline.flag', 'flag_poly.flag', 'f_fix.flag', 'verbose.flag',
                'bm4.flag', 'disp.eos_flag', 'disp.fit_vt_flag', 'static_range.flag',
-               'vd.flag']
+               'vd.flag', 'disp.thermo_vt_flag']
     
     for iflag in flag_list:      
         r_flag=iflag+'=False'
