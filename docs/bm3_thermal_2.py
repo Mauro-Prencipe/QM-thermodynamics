@@ -19,7 +19,7 @@ import warnings
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
+import matplotlib.ticker as mtick 
 
 import pandas as pd
 import sympy as sym
@@ -32,11 +32,24 @@ from scipy import integrate
 from mineral_data import mineral, load_database, equilib, reaction,\
      pressure_react, export, field, import_database, name_list
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
-     mao, fmao, stv
+     mao, fmao, stv, cc, arag
     
 import_database()
 
 mpl.rcParams['figure.dpi']= 80
+
+
+class OOMFormatter(mtick.ScalarFormatter):
+    def __init__(self, order=0, fformat="%1.1f", offset=True, mathText=True):
+        self.oom = order
+        self.fformat = fformat
+        mtick.ScalarFormatter.__init__(self,useOffset=offset,useMathText=mathText)
+    def _set_order_of_magnitude(self):
+        self.orderOfMagnitude = self.oom
+    def _set_format(self, vmin=None, vmax=None):
+        self.format = self.fformat
+        if self._useMathText:
+            self.format = r'$\mathdefault{%s}$' % self.format
 
 class flag:
     def __init__(self,value):
@@ -182,6 +195,7 @@ class data_info():
             print("Brillouin flag(s): %s" % str(anharm.brill).strip('[]'))
             
         if disp.flag:
+            print("\n---------------  Phonon dispersion  --------------------")
             print("\nDispersion correction activated for the computation of entropy and")
             print("specific heat:")
             print("Number of frequency sets: %3i" % disp.nset)
@@ -193,25 +207,28 @@ class data_info():
                         % (disp.fit_degree, disp.fit_type)) 
             print("Number of off-centered modes: %5i" % disp.f_size)
         
-        if disp.flag:
-           if disp.eos_flag:
+            if disp.eos_flag:
                print("\nThe phonon dispersion is used for the computation of the bulk modulus")
                print("if the bulk_dir or the bulk_modulus_p functions are used, the latter")
                print("in connection with the noeos option.")    
                if disp.fit_vt_flag:
                    print("The required V,T-fit of the free energy contribution from")
-                   print("the off-centered modes is ready. Fit power: %3i" % disp.fit_vt_deg)
+                   print("the off-centered modes is ready. Fit V,T-powers: %3i, %3i" 
+                         % (disp.fit_vt_deg_v, disp.fit_vt_deg_t))
                else:
                    print("The required V,T-fit of the free energy contribution from")
                    print("the off-centered mode is NOT ready.")
-           else:
+            else:
                print("\nThe phonon dispersion correction is not used for the computation")
                print("of the bulk modulus")
-           if disp.thermo_vt_flag & (disp.nset > 1):
+               
+            if disp.thermo_vt_flag & (disp.nset > 1):
                print("\nVT-phonon dispersion correction to the thermodynamic properties")
-           elif (not disp.thermo_vt_flag) & (disp.nset > 1):
+            elif (not disp.thermo_vt_flag) & (disp.nset > 1):
                print("\nT-phonon dispersion correction to the thermodynamic properties")
-               print("Use disp.thermo_vt_on() to activate")
+               print("Use disp.thermo_vt_on() to activate the V,T-correction")
+               
+            print("\n --------------------------------------------------------")   
             
         if lo.flag:
             out_lo=(lo.mode, lo.split)
@@ -775,7 +792,9 @@ class disp_class():
         self.error_flag=False
         self.ex_flag=False
         self.free_min_t=10.
-        self.fit_vt_deg=4
+        self.fit_vt_deg_t=4
+        self.fit_vt_deg_v=4
+        self.fit_t_deg=4
         self.free_nt=24
         self.free_disp=True
     def on(self):
@@ -791,7 +810,7 @@ class disp_class():
         if self.flag :
            if not self.error_flag:
               self.eos_flag=True
-              print("Phonon dispersion correction for bulk_dir computation")
+              print("\nPhonon dispersion correction for bulk_dir or bulk_modulus_p computations")
            else:
               print("Only 1 volume found in the 'disp' files; NO disp_eos possible")
         else:
@@ -807,6 +826,8 @@ class disp_class():
         if self.nset > 1:
            self.thermo_vt_flag=True
            print("VT-dispersion correction of thermodynamic properties\n")
+           if not self.fit_vt_flag: 
+                  self.free_fit_vt()
         else:
            print("One volume only found in the DISP file")
     
@@ -967,8 +988,8 @@ class disp_class():
     
     def free_fit(self,mxt,vv,disp=True):
         
-        fit_deg=4
-        nt=16
+        fit_deg=self.fit_t_deg
+        nt=24
         nt_plot=50
         tl=np.linspace(10,mxt,nt)
         
@@ -999,7 +1020,7 @@ class disp_class():
               plt.title("Helmholtz free energy from off-centered modes")
               plt.show()    
   
-    def free_fit_ctrl(self, min_t=10., degree=4, nt=24, disp=True):
+    def free_fit_ctrl(self, min_t=10., t_only_deg=4, degree_v=4, degree_t=4, nt=24, disp=True):
         """
         Free fit driver: sets the relevant parameters for the fit computation
         of the F(V,T) function, on the values of F calculated on a grid
@@ -1008,7 +1029,10 @@ class disp_class():
         Args:
             min_t: minimum temperature for the construction of the 
                    VT grid (default=10.)
-            degree: degree of the surface (default=4)
+            degree_v: maximum degree of V terms of the surface (default=4)
+            degree_t: maximum degree ot T terms of the sarface (default=4)
+            t_only_degree: degree of the T polynomial for a single volume 
+                           phonon dispersion (default=4)
             nt: number of points along the T axis for the definition of the 
                 (default=24) grid
             disp: it True, a plot of the surface is shown (default=True)
@@ -1023,12 +1047,15 @@ class disp_class():
             in the disp.vol variable.
         """    
         self.free_min_t=min_t
-        self.fit_vt_deg=degree
+        self.fit_t_deg=t_only_deg
+        self.fit_vt_deg_t=degree_t
+        self.fit_vt_deg_v=degree_v
         self.free_nt=nt
         self.free_disp=disp
         
         if self.input_flag:
            self.free_fit_vt()
+           self.free_fit(self.temp,self.vol[0])
         
     def set_tmin(self,tmin):
         self.min_t=tmin
@@ -1042,21 +1069,27 @@ class disp_class():
         min_t=self.free_min_t
         nt=self.free_nt
         disp=self.free_disp
-        deg=self.fit_vt_deg
+        deg_t=self.fit_vt_deg_t
+        deg_v=self.fit_vt_deg_v
         
         max_t=self.temp
         
-        pl=np.arange(deg+1)
+        pvv=np.arange(deg_v+1)
+        ptt=np.arange(deg_t+1)
         p_list=np.array([],dtype=int)
     
-        for ip1 in pl:
-          for ip2 in pl:
+        maxvt=np.max([deg_v, deg_t])
+        
+        
+        for ip1 in np.arange(maxvt+1):
+          for ip2 in np.arange(maxvt+1):
             i1=ip2
             i2=ip1-ip2
             if i2 < 0:
                 break
             ic=(i1, i2)
-            p_list=np.append(p_list,ic)
+            if (i1 <= deg_v) and (i2 <= deg_t):
+                p_list=np.append(p_list,ic)
     
         psize=p_list.size
         pterm=int(psize/2)
@@ -1104,7 +1137,7 @@ class disp_class():
         mean_error=np.sqrt(np.mean(error))
         max_error=np.sqrt(np.max(error))
         print("V,T-fit of the Helmholtz free energy contribution from the off-centered modes")
-        print("Power of the fit: %3i" % self.fit_vt_deg)
+        print("V, T powers of the fit: %3i %3i" % (self.fit_vt_deg_v, self.fit_vt_deg_t))
         print("Mean error: %5.2e" % mean_error)
         print("Maximum error: %5.2e" % max_error)
         
@@ -3722,10 +3755,17 @@ def dcp_dp(tt,pp,**kwargs):
     
 
 
-def compare_exp(graph_exp=True,save="",dpi=300,**kwargs):
+def compare_exp(graph_exp=True, unit='j' ,save="",dpi=300,**kwargs):
     """
     Compare experimental with computed data for Cp and S; 
-    makes a plot of the data  
+    makes a plot of the data 
+    
+    Args:
+        graph_exp: if True, a plot of Cp vs T is produced
+        unit: unit of measure of experimental data; allowed values are 'j' or
+              'cal' (default 'j')
+        save: file name to save the plot (no file written by default)
+        dpi:  resolution of the image (if 'save' is given)
     """
     
     l_arg=list(kwargs.items())
@@ -3735,12 +3775,20 @@ def compare_exp(graph_exp=True,save="",dpi=300,**kwargs):
           fix_value=karg_i[1]
           fixpar=True
           
+    if (unit == 'j') or (unit == 'J'):
+        conv_f=1.
+    elif (unit == 'cal') or (unit == 'CAL'):
+        conv_f=4.184
+    else:
+        print("Warning: unit %s is unknow. J is assumed" % unit)
+        conv_f=1.
+          
     if not flag_exp:
         print("Warning: experimental data file not found")
         return
     t_list=data_cp_exp[:,0]
-    cp_exp_list=data_cp_exp[:,1]
-    s_exp_list=data_cp_exp[:,2]
+    cp_exp_list=data_cp_exp[:,1]*conv_f
+    s_exp_list=data_cp_exp[:,2]*conv_f
     cp_calc=[]
     s_calc=[]
     for ti in t_list:
@@ -4385,15 +4433,17 @@ def eos_temp(tt,prt=True,update=False,kp_only=False):
     vol_max=np.max(volb)
     nvol=pr.nvol_eos
     vol_range=np.linspace(vol_min,vol_max,nvol)
-    plt.figure(1)
+    fig, ax=plt.subplots()
     plt.title("F(V) curve at T= %5.2f K" % tt)
-    plt.plot(volb, free_energy, "*")
+    ax.plot(volb, free_energy, "*")
+    
     if bm4.flag:
         plt.plot(vol_range, bm4.energy(vol_range, *pterm),'b-')
     else:        
         plt.plot(vol_range, v_bm3(vol_range, *pterm), 'b-')
     plt.xlabel("V (A^3)")
     plt.ylabel("F (a.u.)")
+    ax.ticklabel_format(axis='y', style='sci', useOffset=False)
     plt.show()
     print("\nVolume-Pressure list at %5.2f K\n" % tt)
     for vp_i in volb:

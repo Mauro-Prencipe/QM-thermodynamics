@@ -176,6 +176,8 @@ sp=mineral("spinel","sp")
 mao=mineral("maohokite","mao")
 fmao=mineral("fe-maohokite","fmao")
 stv=mineral("stishovite","stv")
+cc=mineral("calcite", "cc")
+arag=mineral("aragonite", "arag")
 
 def export(mineral_nick):
     
