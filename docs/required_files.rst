@@ -39,6 +39,10 @@ Optional files:
 9. A **quick_start.txt** file in the master folder. This file contains the name of the folder of the data to be processed. If this file exists, 
    the program immediately proceeds to read the relevant data files, without having to issue the *read_file* and the *static* commands
 
+10. A static pressures file. The file must contain a list of unit cell volumes (in A^3) and the corrisponding static pressures (in GPa). 
+    The name of this file must be written in the :doc:`files` under the *PSTATIC* keyword. Note that, with this keyword, the name of the file 
+    must be followed by the static energy value at the equilibrium unit cell volume.
+
 Note:
    A special *parame.py* **mandatory** file must be always present in the master folder. It contains several parameters for the execution of some 
    functions of the program, which could possibly be modified by *expert* users and developers only. 
