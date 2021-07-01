@@ -26,6 +26,7 @@ List of keywords:
 - LO      (**optional**):   file name of the LO-TO splitting data
 - SET     (**mandatory**):  set of volumes/frequencies to be used in the calculation (a list of integers indexing the file specified by the VOLUME keyword)
 - STATIC  (**mandatory**):  file name of static energy curve (volumes and static internal energy of the crystal)
+- PSTATIC (**optional**):   file name of the static pressures (volumes and static pressures) follewed by the value of the static energy at the equilibrium static volume
 - TEMP    (**optional**):   set of temperature for the output of a *PVT* file to be used with the EoSFit program
 - VOLUME  (**mandatory**):  file name of the volumes corresponding to the frequencies in the FREQ file 
 
