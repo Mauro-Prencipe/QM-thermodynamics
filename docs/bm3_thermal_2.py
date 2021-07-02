@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.4.0 18/02/2021
+# Version 2.4.1 02/07/2021
 #
 
 # Comment the following three lines to produce the documentation 
@@ -246,6 +246,11 @@ class data_info():
         print("EoS shift: %3.1f; Quad_shrink: %2i; T_dump: %3.1f; Dump fact.: %2.1f, T_last %4.1f" % \
               (volume_ctrl.shift, volume_ctrl.quad_shrink, volume_ctrl.t_dump, volume_ctrl.dump,\
                volume_ctrl.t_last))
+            
+        print("\n**** Numerical T-derivatives driver class (delta_ctrl) ****")
+        print("Delta:      %3.1f" % delta_ctrl.delta)
+        print("Degree:      %3i" % delta_ctrl.degree)
+        print("N. of points %3i" % delta_ctrl.nump)        
         
         if verbose.flag:
            print("\n--------- Database section ---------")    
@@ -760,6 +765,52 @@ class volume_control_class():
         self.skew=skew
         self.t_last=t_last
         
+class delta_class():
+    """
+    Control parameters for the numerical evaluation of the first and second
+    derivatives of the Helmholtz free energy as a function of T. They are
+    relevant for the entropy_v function that computes both the entropy and
+    specific heat at a fixed volume.
+    
+    Initial values of delta, degree and number of points are read
+    from the parameters file 'parame.py'
+    
+    New values can be set by the methods set_delta, set_degree and set_nump
+    of the class. values can be retrieved by the corresponding 'get' methods.
+    
+    The reset method set the default values.
+    """
+    def __init__(self):
+        self.delta=pr.delta
+        self.nump=pr.nump
+        self.degree=pr.degree
+    def set_delta(self,delta):
+        self.delta=delta
+        print("Delta T value, for the computation of entropy and Cv, set to %4.1f" \
+              % self.delta)
+    def set_degree(self,degree):
+        self.degree=degree
+        print("Degree for the computation of entropy and Cv, set to %3i" \
+              % self.degree)
+    def set_nump(self,nump):
+        self.nump=nump
+        print("N. points for the computation of entropy and Cv, set to %3i" \
+              % self.nump)
+    def get_delta(self):
+        return self.delta
+    def get_degree(self):
+        return self.degree
+    def get_nump(self):
+        return self.nump
+    def reset(self):
+        self.delta=pr.delta
+        self.degree=pr.degree
+        self.nump=pr.nump
+        print("\nDefault parameters for the computation of entropy and Cv:")
+        print("Delta:       %3.1f" % self.delta)
+        print("Degree:       %3i" % self.degree)
+        print("Num. points:  %3i" % self.nump)
+            
 class disp_class():
     """
     Sets up the computation for the inclusion of phonon dispersion effects
@@ -3427,7 +3478,7 @@ def g_vt_dir(tt,pp,**kwargs):
     return gtv-gref  
 
 
-def entropy_v(tt,vv, plot=False, prt=False, delta=pr.delta, **kwargs):
+def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
     """
     Entropy and specific heat at constant volume 
     
@@ -3437,11 +3488,7 @@ def entropy_v(tt,vv, plot=False, prt=False, delta=pr.delta, **kwargs):
         plot (optional): (default False) plots free energy vs T for checking
                          possible numerical instabilities
         prt (optional):  (default False) prints formatted output
-        delta (opt.):    if given, overrides the default delta value that
-                         defines the T-range for the calculation of the Helmholtz
-                         function 
-                         
-         
+                                  
     Keyword Args: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
@@ -3458,8 +3505,9 @@ def entropy_v(tt,vv, plot=False, prt=False, delta=pr.delta, **kwargs):
        if 'fix' == karg_i[0]:
           fix_value=karg_i[1]
           fixpar=True
-    nump=pr.nump
-    degree=pr.degree
+    nump=delta_ctrl.get_nump()
+    degree=delta_ctrl.get_degree()
+    delta=delta_ctrl.get_delta()
     maxv=max(data_vol_freq)
     free_f=[]
     min_t=tt-delta/2.
@@ -6615,10 +6663,10 @@ def main():
     global flag_view_input, flag_dir, f_fix, vol_opt, alpha_opt, info, lo, gamma_fit
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
-    global path_orig, p_stat
+    global path_orig, p_stat, delta_ctrl
     
     ctime=datetime.datetime.now()
-    version="2.4.0 - 18/02/2021"
+    version="2.4.1 - 02/07/2021"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
@@ -6661,6 +6709,7 @@ def main():
     disp=disp_class()
     volume_correction=vol_corr_class()
     volume_ctrl=volume_control_class()
+    delta_ctrl=delta_class()
       
     vol_opt.on()
     alpha_opt.on()    
