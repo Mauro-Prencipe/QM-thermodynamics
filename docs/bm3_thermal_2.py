@@ -104,6 +104,8 @@ class data_info():
         self.k0_static=None
         self.kp_static=None
         self.v0_static=None
+        self.popt=None
+        self.popt_orig=None
         self.min_names=name_list.mineral_names
         self.title=None
     
@@ -1264,7 +1266,7 @@ class volume_delta_class():
 def read_file(data_path):
    global volume, energy, deg, data_vol_freq, num_set_freq
    global num_mode, ini, int_set, int_mode, data_vol_freq_orig
-   global temperature_list, popt, pcov, data_freq, path, data_file
+   global temperature_list, pcov, data_freq, path, data_file
    global data, zu, apfu, power, lpow, power_a, lpow_a, mass
    global flag_eos, flag_cp, flag_alpha, flag_err, flag_exp, flag_mass
    global data_cp_exp, data_p_file, static_e0
@@ -2935,7 +2937,7 @@ def static(plot=False, vmnx=[0., 0.]):
         future computations; by using the second method, the volume range is reset
         to the original one, once the fit is performed.  
     """
-    global popt, pcov
+    global pcov
         
     if flag_err:
         return None
@@ -2982,6 +2984,8 @@ def static(plot=False, vmnx=[0., 0.]):
     info.k0_static=k_gpa
     info.kp_static=kp
     info.v0_static=v0
+    info.popt=popt
+    info.popt_orig=popt
     
     vd.set_delta(v0)
     
@@ -2998,7 +3002,7 @@ def static(plot=False, vmnx=[0., 0.]):
        plt.xlabel("V (A^3)")
        plt.show()
        
-def p_static():
+def p_static(nvol=50, v_add=[], e_add=[]):
     """
     Computes a static BM3-EoS from a P/V set of data. Data (cell volumes in A^3 and
     pressures in GPa) must be contained in a file whose name must be specified 
@@ -3006,31 +3010,30 @@ def p_static():
     static volume.
 
     Args:
-        plot: if True, a P(V) plot is shown
+        
 
     Note:
         This function provides static data for the calculation of the static
         contribution to the Helmholtz free energy. It is an alternative to
         the fit of the static E/V data performed by the 'static' function.                          
     """
+
     
-    global popt
-    
-    popt_orig=np.copy(popt)
+    add_flag=False
+    if v_add != []:
+       add_flag=True       
     
     p_data=np.loadtxt(data_p_file)
     pres_gpa=p_data[:,1]
     vs=p_data[:,0]
     pres=pres_gpa*1e-21/conv
     pstat, cstat = curve_fit(bm3, vs, pres, p0=ini[0:3],ftol=1e-15,xtol=1e-15)
-    popt[0]=pstat[0]
-    popt[1]=pstat[1]
-    popt[2]=pstat[2]
-    popt[3]=static_e0
+    info.popt=pstat
+    info.popt=np.append(info.popt,static_e0)
     
-    k_gpa=popt[1]*conv/1e-21
-    kp=popt[2]
-    v0=popt[0]
+    k_gpa=info.popt[1]*conv/1e-21
+    kp=info.popt[2]
+    v0=info.popt[0]
     
     info.k0_static=k_gpa
     info.kp_static=kp
@@ -3040,12 +3043,11 @@ def p_static():
     print("\nBulk Modulus: %5.2f GPa" % k_gpa)
     print("Kp:            %5.2f " % kp )
     print("V0:           %5.4f A^3" % v0)
-    print("E0:            %5.8e hartree" % popt[3])
+    print("E0:            %5.8e hartree" % info.popt[3])
     
     vol_min=np.min(vs)
     vol_max=np.max(vs)
-    nvol=50
-    ps=popt[0:3]
+    ps=info.popt[0:3]
     vol_range=np.linspace(vol_min,vol_max,nvol)
     p_GPa=bm3(vol_range, *ps)*conv/1e-21
     
@@ -3068,8 +3070,10 @@ def p_static():
     p_stat.v0=v0
     p_stat.e0=static_e0
     
-    energy_static=v_bm3(vol_range, *popt_orig)
-    energy_pstatic=v_bm3(vol_range, *popt)
+    energy_static=v_bm3(vol_range, *info.popt_orig)
+    energy_pstatic=v_bm3(vol_range, *info.popt)
+    
+    delta=energy_pstatic-energy_static
     
     select=(volume >= vol_min) & (volume <= vol_max)
     vv=volume[select]
@@ -3079,24 +3083,34 @@ def p_static():
     plt.plot(vol_range, energy_static, "k-", label="STATIC case")
     plt.plot(vol_range, energy_pstatic, "k--", label="PSTATIC case")
     plt.plot(vv,ee,"k*", label="Original E(V) data")
+    if add_flag:
+        plt.plot(v_add, e_add, "r*", label="Not V-BM3 fitted data")
+        
     plt.legend(frameon=False)
     plt.xlabel("Volume (A^3)")
-    plt.ylabel("E (hartee)")
+    plt.ylabel("E (hartree)")
     plt.title("E(V) curves")
     plt.show()
     
-    delta=abs(energy_static-energy_pstatic)
-    delta=delta*conv*avo/zu
+    plt.figure()
+    plt.plot(vol_range,delta,"k-")
+    plt.xlabel("Volume (A^3)")
+    plt.ylabel("E (hartree)")
+    plt.title("Pstatic and static energy difference")
+    plt.show()
+    
+    delta=abs(delta)
     
     mean=delta.mean()
+    mean_j=mean*conv*avo/zu
     std=delta.std()
     imx=np.argmax(delta)
     mx=delta[imx]
     vx=vol_range[imx]
     
-    print("Mean discrepancy: %5.1f J/mole" % mean)
-    print("Standard deviation: %5.1f" % std)
-    print("Maximum discrepancy %5.1f for volume %7.2f" % (mx, vx))    
+    print("Mean discrepancy: %6.3e hartree (%5.1f J/mole)" % (mean, mean_j))
+    print("Standard deviation: %4.1e hartree" % std)
+    print("Maximum discrepancy %6.3e hartree for a volume of %6.2f A^3" % (mx, vx))    
        
 def static_pressure_bm3(vv):
     """
@@ -3106,9 +3120,9 @@ def static_pressure_bm3(vv):
         vv: volume
     """
     static(plot=False)
-    k0=popt[1]
-    kp=popt[2]
-    v0=popt[0]
+    k0=info.popt[1]
+    kp=info.popt[2]
+    v0=info.popt[0]
     p_static_bm3=bm3(vv,v0, k0,kp)
     ps=p_static_bm3*conv/1e-21
     print("Static pressure at the volume: %4.2f" % ps)
@@ -3171,7 +3185,7 @@ def free(temperature):
         if bm4.flag:
            ei=bm4.energy(vol_i,*bm4.bm4_static_eos) 
         else: 
-           ei=v_bm3(vol_i, *popt)
+           ei=v_bm3(vol_i, *info.popt)
         enz_i=0.
         fth_i=0.
         eianh=0.
@@ -3241,7 +3255,7 @@ def free_fit(temperature):
                for im in np.arange(anharm.nmode):
                    eianh=eianh+helm_anharm_func(im,ivol,temperature)*anharm.wgt[im]
         else: 
-           ei=v_bm3(ivol,*popt)
+           ei=v_bm3(ivol,*info.popt)
            if anharm.flag:
                eianh=0.
                for im in np.arange(anharm.nmode):
@@ -3277,7 +3291,7 @@ def free_fit(temperature):
     return energy_tot 
 
 def free_fit_vt(tt,vv):
-    e_static=v_bm3(vv,*popt)
+    e_static=v_bm3(vv,*info.popt)
     enz=0
     fth=0
     eianh=0.
@@ -4329,9 +4343,9 @@ def gibbs_p(tt,pp,**kwargs):
     
     if disp.flag:
         if not disp.themo_vt_flag:
-           f_disp=disp.free_func(tt)+v_bm3(vol[0],*popt)*disp.molt
+           f_disp=disp.free_func(tt)+v_bm3(vol[0],*info.popt)*disp.molt
         else:
-           f_disp=disp.free_vt(tt,vol)+v_bm3(vol[0],*popt)*disp.molt 
+           f_disp=disp.free_vt(tt,vol)+v_bm3(vol[0],*info.popt)*disp.molt 
         f_energy=(f_energy+f_disp)/(disp.molt+1)
         
     fact=1.
