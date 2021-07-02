@@ -85,7 +85,8 @@ site and, from there, compiled and interactively used on Binder (click on the *E
 .. toctree::
    :maxdepth: 3
    :caption: Contact and citation 
-  
+   
+   Version
    Citation
    Contact
    
