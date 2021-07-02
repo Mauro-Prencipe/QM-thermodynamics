@@ -22,7 +22,7 @@ copyright = '2021, Mauro Prencipe'
 author = 'Mauro Prencipe'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.0'
+release = '2.4.1'
 
 
 # -- General configuration ---------------------------------------------------
