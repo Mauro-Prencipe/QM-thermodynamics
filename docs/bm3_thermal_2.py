@@ -3009,8 +3009,12 @@ def p_static(nvol=50, v_add=[], e_add=[]):
     in the input file (together with the energy, in hartree, at the equilibrium
     static volume.
 
-    Args:
-        
+    Args: 
+        nvol: number of volume points for the graphical output (default 50)
+        v_add / e_add: lists of volume/energy data to be plotted together
+                       with the E/V curve from the V-EoS fit. Such added
+                       points are not used in the fit (no points added as default)
+                              
 
     Note:
         This function provides static data for the calculation of the static
