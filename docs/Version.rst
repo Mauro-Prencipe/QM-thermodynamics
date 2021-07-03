@@ -1,4 +1,4 @@
 Version
 =======
 
-The current version of the program is the v2.4.1 (2021, July 22)
+The current version of the program is the v2.4.1 (2021, July 02)
