@@ -53,7 +53,7 @@ The program can be loaded and run in a normal Python console as well as in any o
  
 Other than the local PC, Jupyter Notebooks can also be viewed by using the `viewer <https://nbviewer.jupyter.org/>`_
 by inserting the location of the book; see the example 
-`here <https://nbviewer.jupyter.org/github/Mauro-Prencipe/QM-thermodynamics/basic_eos_tutorial.ipynb>`_ .
+`here <https://nbviewer.jupyter.org/github/Mauro-Prencipe/QM-thermodynamics/blob/main/basic_eos_tutorial.ipynb>`_ .
 
 Once the notebook has been loaded in nbviewer, by clicking on the **Execute on Binder** button an *image* is created 
 on the `Binder site <https://gke.mybinder.org/>`_ and the notebook is executed (though it may require some minutes to 
