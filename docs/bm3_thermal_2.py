@@ -32,7 +32,7 @@ from scipy import integrate
 from mineral_data import mineral, load_database, equilib, reaction,\
      pressure_react, export, field, import_database, name_list
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
-     mao, fmao, stv, cc, arag, jeff
+     mao, fmao, stv, cc, arag, jeff, jeff_fe
     
 import_database()
 
@@ -248,9 +248,16 @@ class data_info():
                volume_ctrl.t_last))
             
         print("\n**** Numerical T-derivatives driver class (delta_ctrl) ****")
-        print("Delta:      %3.1f" % delta_ctrl.delta)
-        print("Degree:      %3i" % delta_ctrl.degree)
-        print("N. of points %3i" % delta_ctrl.nump)        
+        if not delta_ctrl.adaptive:
+           print("Delta:      %3.1f" % delta_ctrl.delta)
+           print("Degree:      %3i" % delta_ctrl.degree)
+           print("N. of points %3i" % delta_ctrl.nump)
+        else:
+           print("Adaptive scheme active:")
+           print("T_min, T_max:         %4.1f, %5.1f K" % (delta_ctrl.tmin, delta_ctrl.tmax))
+           print("Delta_min, Delta_max: %4.1f,  %5.1f K" % (delta_ctrl.dmin, delta_ctrl.dmax))
+           print("Degree:      %3i" % delta_ctrl.degree)
+           print("N. of points %3i" % delta_ctrl.nump)
         
         if verbose.flag:
            print("\n--------- Database section ---------")    
@@ -779,11 +786,37 @@ class delta_class():
     of the class. values can be retrieved by the corresponding 'get' methods.
     
     The reset method set the default values.
+    
+    An adaptive scheme is activated by the method adaptive_on (adaptive_off
+    deactivates the scheme). In this case the delta value is computed as a function
+    of temperature (T). Precisely: 
+        
+    delta=delta_min+(T-t_min)*(delta_max-delta_min)/(t_max-t_min)
+    
+    delta=delta_min if T < t_min
+    delta=delta_max if T > t_max
+    
+    The paramaters t_min, t_max, delta_min and delta_max can be set by the
+    adaptive_set method (default values 50, 1000, 10, 50, respectively)
     """
     def __init__(self):
         self.delta=pr.delta
         self.nump=pr.nump
         self.degree=pr.degree
+        self.adaptive=False
+        self.tmin=50.
+        self.tmax=1000.
+        self.dmin=10.
+        self.dmax=50.
+    def adaptive_on(self):
+        self.adaptive=True
+    def adaptive_off(self):
+        self.adaptive=False
+    def adaptive_set(tmin=50., tmax=1000., dmin=10., dmax=50.):
+        self.tmin=tmin
+        self.tmax=tmax
+        self.dmin=dmin
+        self.dmax=dmax
     def set_delta(self,delta):
         self.delta=delta
         print("Delta T value, for the computation of entropy and Cv, set to %4.1f" \
@@ -796,8 +829,16 @@ class delta_class():
         self.nump=nump
         print("N. points for the computation of entropy and Cv, set to %3i" \
               % self.nump)
-    def get_delta(self):
-        return self.delta
+    def get_delta(self, tt=300):
+        if not self.adaptive:
+           return self.delta
+        else:
+           if tt < self.tmin:
+              return self.dmin
+           elif tt > self.tmax:
+              return self.dmax
+           else:
+              return self.dmin+((tt-self.tmin)/(self.tmax-self.tmin))*(self.dmax-self.dmin) 
     def get_degree(self):
         return self.degree
     def get_nump(self):
@@ -3507,7 +3548,10 @@ def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
           fixpar=True
     nump=delta_ctrl.get_nump()
     degree=delta_ctrl.get_degree()
-    delta=delta_ctrl.get_delta()
+    if delta_ctrl.adaptive:
+       delta=delta_ctrl.get_delta(tt)
+    else:
+       delta=delta_ctrl.get_delta()
     maxv=max(data_vol_freq)
     free_f=[]
     min_t=tt-delta/2.

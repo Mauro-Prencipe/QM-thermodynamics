@@ -179,6 +179,7 @@ stv=mineral("stishovite","stv")
 cc=mineral("calcite", "cc")
 arag=mineral("aragonite", "arag")
 jeff=mineral("jeffbenite", "jeff")
+jeff_fe=mineral("Fe-jeffbenite", "jeff_fe")
 
 def export(mineral_nick):
     
