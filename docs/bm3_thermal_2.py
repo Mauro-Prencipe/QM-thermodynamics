@@ -254,8 +254,8 @@ class data_info():
            print("N. of points %3i" % delta_ctrl.nump)
         else:
            print("Adaptive scheme active:")
-           print("T_min, T_max:         %4.1f, %5.1f K" % (delta_ctrl.tmin, delta_ctrl.tmax))
-           print("Delta_min, Delta_max: %4.1f,  %5.1f K" % (delta_ctrl.dmin, delta_ctrl.dmax))
+           print("T_min, T_max:         %4.1f,  %6.1f K" % (delta_ctrl.tmin, delta_ctrl.tmax))
+           print("Delta_min, Delta_max: %4.1f,  %6.1f K" % (delta_ctrl.dmin, delta_ctrl.dmax))
            print("Degree:      %3i" % delta_ctrl.degree)
            print("N. of points %3i" % delta_ctrl.nump)
         
@@ -812,7 +812,7 @@ class delta_class():
         self.adaptive=True
     def adaptive_off(self):
         self.adaptive=False
-    def adaptive_set(tmin=50., tmax=1000., dmin=10., dmax=50.):
+    def adaptive_set(self, tmin=50., tmax=1000., dmin=10., dmax=50.):
         self.tmin=tmin
         self.tmax=tmax
         self.dmin=dmin
