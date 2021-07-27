@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.4.2 26/07/2021
+# Version 2.4.2 27/07/2021
 #
 
 # Comment the following three lines to produce the documentation 
@@ -777,7 +777,8 @@ class delta_class():
     Control parameters for the numerical evaluation of the first and second
     derivatives of the Helmholtz free energy as a function of T. They are
     relevant for the entropy_v function that computes both the entropy and
-    specific heat at a fixed volume.
+    specific heat at a fixed volume, as well as the computation of thermal
+    expansion.
     
     Initial values of delta, degree and number of points are read
     from the parameters file 'parame.py'
@@ -819,15 +820,15 @@ class delta_class():
         self.dmax=dmax
     def set_delta(self,delta):
         self.delta=delta
-        print("Delta T value, for the computation of entropy and Cv, set to %4.1f" \
+        print("Delta T value, for the computation of entropy, Cv and thermal expansion set to %4.1f" \
               % self.delta)
     def set_degree(self,degree):
         self.degree=degree
-        print("Degree for the computation of entropy and Cv, set to %3i" \
+        print("Degree for the computation of entropy, Cv and thermal expansion set to %3i" \
               % self.degree)
     def set_nump(self,nump):
         self.nump=nump
-        print("N. points for the computation of entropy and Cv, set to %3i" \
+        print("N. points for the computation of entropy, Cv and thermal expansion set to %3i" \
               % self.nump)
     def get_delta(self, tt=300):
         if not self.adaptive:
@@ -847,7 +848,7 @@ class delta_class():
         self.delta=pr.delta
         self.degree=pr.degree
         self.nump=pr.nump
-        print("\nDefault parameters for the computation of entropy and Cv:")
+        print("\nDefault parameters for the computation of entropy, Cv and thermal expansion:")
         print("Delta:       %3.1f" % self.delta)
         print("Degree:       %3i" % self.degree)
         print("Num. points:  %3i" % self.nump)
@@ -3699,9 +3700,9 @@ def thermal_exp_v(tt,vv,plot=False,**kwargs):
        if 'fix' == karg_i[0]:
           fix_value=karg_i[1]
           fixpar=True
-    delta=pr.delta_alpha
-    nump=pr.nump_alpha
-    degree=pr.degree_alpha
+    delta=delta_ctrl.get_delta()
+    nump=delta_ctrl.get_nump()
+    degree=delta_ctrl.get_degree()
     maxv=max(data_vol_freq)
     pressure=[]
     min_t=tt-delta/2.
@@ -3754,6 +3755,8 @@ def thermal_exp_p(tt,pp,plot=False,exit=False,**kwargs):
         pp:               pressure
         plot (optional):  plots pressure vs T values (see help to
                           the thermal_exp_v function)
+        exit: if True, the alpha value is returned without formatting (default False)
+        
     Keyword Args: 
         fix: if fix is provided, it controls (and overrides the setting 
              possibly chosen by set_fix) the optimization of kp in BM3; 
@@ -3940,7 +3943,7 @@ def alpha_dir(tt,pp):
     
     return alpha
 
-def alpha_dir_v(tmin, tmax, nt=12, deg=4, smooth=0.001, comp=False, fit=False):
+def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=False, fit=False, trim=0., phase=''):
     """
     Computes thermal expansion from the derivative of a V(T) function
     calculated on a generally large T range. 
@@ -3948,17 +3951,48 @@ def alpha_dir_v(tmin, tmax, nt=12, deg=4, smooth=0.001, comp=False, fit=False):
     Args:
         tmin: minimum temperature
         tmax: maximum temperature
-        nt: number of T pont in the range (default 12)
-        deg: degree of the spline fit of the V(T) values (default 4)
-        smooth: smoothness parameter of the spline fit (default 0.001)
+        nt: number of T points in the range (default 12)
+        type: if 'spline' (default), a spline fit of the V(T) values is performed;
+              otherwise a polynomial fit is chosen.
+        deg: degree of the spline (or polynomial) fit of the V(T) values (default 4)
+        smooth: smoothness parameter of the spline fit (default 0.001);
+                relevant if type='spline'
         comp: if True, the thermal expansion from its original definition
               is also computed and plotted (default False)
         fit: if True, a power serie fit is performed and parameters are returned
+        trim: if trim > 0. and if fit=True, the power serie fit is done over the
+              [tmin, tmax-trim] range (to avoid possible fitting problems at the end of the
+              high temperature interval
+        phase: if not empty and if fit=True, uploads the coefficients of the
+               of the power serie fit for the selected phase (default '')
               
     Note:
         The spline fit is performed on the Log(V) values; the derivative
-        of the spline fit does coincide with the definition of thermal expansion           
+        of the spline fit does coincide with the definition of thermal expansion  
+
+    Note: 
+        the volume at each temperature is computed by using the volume_dir function
+        
+    Note:
+        Without selecting phase, to upload the parameters from the power serie fit, 
+        execute the alpha_dir_v function by saving the output in a variable; 
+        then use the load_alpha method of the mineral class to upload the variable. 
     """
+    
+    print("\nSummary of the input parameters\n")
+    print("T range: %5.1f,  %5.1f K,   Num. of points: %4i" % (tmin, tmax, nt))
+    if type=='spline':
+       print("Type of Log(V) fit: %s,  degree: %2i,  smooth: %5.4f" % (type, deg, smooth))
+    else:
+       print("Type of Log(V) fit: %s,  degree: %2i" % (type, deg))
+    print("Compare with other methods to compute alpha: %s" % comp)
+    print("Fit alpha values to a power serie: %s" % fit)
+    if fit:
+       print("Trim applied to T and alpha values for the power serie fit: %5.1f" % trim)
+    if phase != '':
+       print("Power serie coefficient uploaded for the phase %s" % phase)
+       
+    print("")
     
     t_list=np.linspace(tmin, tmax, nt)
     v_list=np.array([])
@@ -3969,29 +4003,58 @@ def alpha_dir_v(tmin, tmax, nt=12, deg=4, smooth=0.001, comp=False, fit=False):
         
     if comp:
         al_list=np.array([])
+        therm_list=np.array([])
         for it in t_list:
-            ial=alpha_dir(it,0)
+            ial=alpha_dir(it,0)            
             al_list=np.append(al_list, ial)
         
+        if f_fix.flag:    
+           reset_fix()
+           
+        for it in t_list:
+            ith=thermal_exp_p(it,0., exit=True)[0]
+            therm_list=np.append(therm_list, ith)
+        
     v_log=np.log(v_list)
-    v_log_fit=UnivariateSpline(t_list, v_log, k=deg, s=smooth)
-    alpha_fit=v_log_fit.derivative()
-    alpha_calc=alpha_fit(t_list)
     
+    if type=='spline':
+       v_log_fit=UnivariateSpline(t_list, v_log, k=deg, s=smooth)
+       alpha_fit=v_log_fit.derivative()
+       alpha_calc=alpha_fit(t_list)
+    else:
+       v_log_fit=np.polyfit(t_list, v_log, deg)
+       alpha_fit=np.polyder(v_log_fit,1)
+       alpha_calc=np.polyval(alpha_fit, t_list)
+       
     t_plot=np.linspace(tmin,tmax, nt*10)
-    v_log_plot=v_log_fit(t_plot)
-    alpha_plot=alpha_fit(t_plot)
     
+    if type=='spline':
+       v_log_plot=v_log_fit(t_plot)
+       alpha_plot=alpha_fit(t_plot)
+    else:
+       v_log_plot=np.polyval(v_log_fit, t_plot)
+       alpha_plot=np.polyval(alpha_fit, t_plot)
+       
     if fit:
+       t_trim=np.copy(t_list)
+       alpha_trim=np.copy(alpha_calc)
+       if trim > 0.1:
+          trim_idx=(t_trim < (tmax-trim))
+          t_trim=t_list[trim_idx]
+          alpha_trim=alpha_trim[trim_idx]
+        
        coef_ini=np.ones(lpow_a)
-       fit_al,_=curve_fit(alpha_dir_fun,t_list,alpha_calc,p0=coef_ini)
-       alpha_fit_plot=alpha_fit(t_plot)
+       fit_al,_=curve_fit(alpha_dir_fun,t_trim,alpha_trim,p0=coef_ini)
+       
+       alpha_fit_plot=list(alpha_dir_fun(it, *fit_al) for it in t_plot)
+       
     
     plt.figure()
     plt.plot(t_list, v_log,"k*", label="Actual Log(V) values")
     plt.plot(t_plot, v_log_plot, "k-", label="Spline fit")
     plt.xlabel("T (K)")
     plt.ylabel("Log(V)")
+    plt.xlim(tmin, tmax)
     plt.title("Log(V) vs T")
     plt.legend(frameon=False)
     plt.show()
@@ -3999,10 +4062,12 @@ def alpha_dir_v(tmin, tmax, nt=12, deg=4, smooth=0.001, comp=False, fit=False):
     plt.figure()
     plt.plot(t_plot, alpha_plot, "k-", label="From V(T) fit")
     if comp:
-       plt.plot(t_list, al_list, "k*", label="From definition")
+       plt.plot(t_list, al_list, "k*", label="From definition (dir)")
+       plt.plot(t_list, therm_list, "k+", label="From definition (EoS)")
     
     plt.xlabel("T (K)")
     plt.ylabel("Alpha (K^-1)")
+    plt.xlim(tmin, tmax)
     plt.legend(frameon=False)
     plt.title("Thermal expansion")
     plt.show()
@@ -4012,6 +4077,7 @@ def alpha_dir_v(tmin, tmax, nt=12, deg=4, smooth=0.001, comp=False, fit=False):
         plt.plot(t_list, alpha_calc, "k*", label="Actual values")
         plt.plot(t_plot, alpha_fit_plot, "k-", label="Power serie fit")
         plt.xlabel("T (K)")
+        plt.xlim(tmin, tmax)
         plt.ylabel("Alpha (K^-1)")
         plt.legend(frameon=False)
         plt.title("Alpha: power serie fit")
@@ -4023,15 +4089,20 @@ def alpha_dir_v(tmin, tmax, nt=12, deg=4, smooth=0.001, comp=False, fit=False):
        fmt3="{:6.1f}"
        alpha_calc=list(fmt.format(ia) for ia in alpha_calc)
        al_list=list(fmt.format(ia) for ia in al_list)
+       therm_list=list(fmt.format(ia) for ia in therm_list)
        v_list=list(fmt2.format(iv) for iv in v_list)
        t_list=list(fmt3.format(it) for it in t_list)
     
-       serie=(t_list,v_list,alpha_calc,al_list)
+       serie=(t_list,v_list,alpha_calc,al_list,therm_list)
        df=pd.DataFrame(serie,\
-          index=[' Temp',' V   ','   Al. fit','  Al. def.'])
+          index=[' Temp',' V   ','     (1)  ','     (2)  ', '     (3)  '])
        df=df.T
        print("")
        print(df.to_string(index=False))   
+       print("")
+       print("(1) from V(T) fit")
+       print("(2) from the definition ('dir' computation)")
+       print("(3) from the definition ('EoS' computation)")
     else:
       fmt="{:4.2e}"
       fmt2="{:11.4f}"
@@ -4047,8 +4118,13 @@ def alpha_dir_v(tmin, tmax, nt=12, deg=4, smooth=0.001, comp=False, fit=False):
       print("")
       print(df.to_string(index=False))
       
-      if fit:
-         return fit_al
+    if fit and (phase != ''):
+       print("")
+       eval(phase).load_alpha(fit_al, power_a)
+       eval(phase).info()
+     
+    if fit and (phase == ''):
+       return fit_al
 
 def alpha_dir_serie(tmin, tmax, nt, pp, fit=True, prt=True):
     
@@ -6828,7 +6904,7 @@ def main():
     global path_orig, p_stat, delta_ctrl
     
     ctime=datetime.datetime.now()
-    version="2.4.2 - 26/07/2021"
+    version="2.4.2 - 27/07/2021"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
