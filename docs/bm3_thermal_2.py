@@ -3961,10 +3961,10 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
               is also computed and plotted (default False)
         fit: if True, a power serie fit is performed and parameters are returned
         trim: if trim > 0. and if fit=True, the power serie fit is done over the
-              [tmin, tmax-trim] range (to avoid possible fitting problems at the end of the
+              [tmin, tmax-trim] T-range, to avoid possible fitting problems at the end of the
               high temperature interval
         phase: if not empty and if fit=True, uploads the coefficients of the
-               of the power serie fit for the selected phase (default '')
+               power serie fit for the selected phase (default '')
               
     Note:
         The spline fit is performed on the Log(V) values; the derivative
