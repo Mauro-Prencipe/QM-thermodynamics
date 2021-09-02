@@ -181,6 +181,7 @@ arag=mineral("aragonite", "arag")
 jeff=mineral("jeffbenite", "jeff")
 jeff_fe=mineral("Fe-jeffbenite", "jeff_fe")
 jeff_fe3p=mineral("Fe3p-jeffbenite", "jeff_fe3p")
+jeff_feb=mineral("Feb-jeffbenite", "jeff_feb")
 
 def export(mineral_nick):
     
