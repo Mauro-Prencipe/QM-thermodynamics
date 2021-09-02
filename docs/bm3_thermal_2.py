@@ -32,7 +32,7 @@ from scipy import integrate
 from mineral_data import mineral, load_database, equilib, reaction,\
      pressure_react, export, field, import_database, name_list
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
-     mao, fmao, stv, cc, arag, jeff, jeff_fe, jeff_fe3p
+     mao, fmao, stv, cc, arag, jeff, jeff_fe, jeff_fe3p, jeff_feb
     
 import_database()
 
@@ -771,6 +771,24 @@ class volume_control_class():
         self.upgrade_shift=upgrade_shift
         self.skew=skew
         self.t_last=t_last
+        
+class volume_F_control_class():
+    def __init__(self):
+        self.shift=0.
+        self.upgrade_shift=False
+        self.flag=False
+    def on(self):
+        self.flag=True
+    def off(self):
+        self.flag=False
+    def set_shift(self, sh):
+        self.shift=sh
+    def upgrade_on(self):
+        self.upgrade_shift=True
+    def upgrade_off(self):
+        self.upgrade_shift=False
+    def get_shift(self):
+        return self.shift
         
 class delta_class():
     """
@@ -2467,6 +2485,173 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
        volume_ctrl.v_last=vmin
        return vmin 
    
+def volume_from_F(tt, shrink=10., npoints=60, debug=False):
+    """
+    Computation of the equilibrium volume at any given temperature 
+    and at 0 pressure. The algorithm looks for the minimum of the 
+    Helmholtz function with respect to V (it is equivalent to the
+    minimization of the Gibbs free energy function as the pressure is 
+    zero. The methods is very similar to that implemented in the 
+    more general volume_dir function, but it does not require the 
+    calculation of any derivative of F (to get the pressure).
+    The Helmholtz free energy is computed by means of the free_fit_vt 
+    function.
+    
+    Args:
+        tt: temperature (in K)
+        npoints: number of points in the V range (centered around an
+                 initial volume computed by the volume_dir function),
+                 where the minimum of F is to be searched (default 60).
+        shrink: shrinking factor for the definition of the V-range for
+                the optimization of V (default 10).
+        debug: plots and prints debug information. If debug=False, only 
+               the optimized value of volume is returned.
+               
+    Note:
+        The function makes use of parameters sets by the methods of
+        the volume_F_ctrl instance of the volume_F_control_class class.
+        In particular, the initial value of volume computed by the 
+        volume_dir function can be shifted by the volume_F_ctrl.shift
+        value. This value is set by the volume_F_ctrl.set_shift method
+        provided that the volume_F_ctrl.upgrade_shift flag is True.      
+    """
+    
+    delta=volume_ctrl.delta
+    d2=delta/2.
+    
+    vini=volume_dir(tt,0)
+    if volume_F_ctrl.flag:
+       shift=volume_F_ctrl.get_shift()
+       vini=vini+shift
+       
+    v_eos=new_volume(tt,0)[0]
+    vlist=np.linspace(vini-d2, vini+d2, npoints)
+    flist=list(free_fit_vt(tt, iv) for iv in vlist)
+    imin=np.argmin(flist)
+    vmin=vlist[imin]
+    vlist2=np.linspace(vmin-d2/shrink, vmin+d2/shrink, 8)
+    flist2=list(free_fit_vt(tt, iv) for iv in vlist2)
+    
+    fit=np.polyfit(vlist2,flist2,2)
+    fitder=np.polyder(fit,1)
+    
+    vref=-fitder[1]/fitder[0]
+    fref=np.polyval(fit, vref)
+    
+    v_shift=vref-vini
+    if volume_F_ctrl.flag & volume_F_ctrl.upgrade_shift:
+       volume_F_ctrl.set_shift(v_shift)
+    
+    vplot=np.linspace(vref-d2/shrink, vref+d2/shrink, npoints)
+    fplot=np.polyval(fit, vplot)
+    
+    if debug:
+        xt=vlist2.round(2)
+        title="F free energy vs V at T = "+str(tt)+" K"
+        plt.figure()
+        ax=plt.gca()
+        ax.ticklabel_format(useOffset=False)
+        plt.plot(vlist2, flist2, "k*", label="Actual values")
+        plt.plot(vplot, fplot, "k-", label="Quadratic fit")
+        plt.plot(vref,fref,"r*", label="Minimum from fit")
+        plt.legend(frameon=False)
+        plt.xlabel("Volume (A^3)")
+        plt.ylabel("F (a.u.)")
+        plt.xticks(xt)
+        plt.title(title)
+        plt.show()
+        
+        print("\nInitial volume from volume_dir:          %8.4f" % vini)
+        print("Volume from EoS fit:                     %8.4f" % v_eos) 
+        print("Approx. volume at minimum F (numerical): %8.4f" % vmin)
+        print("Volume at minimum (from fit):            %8.4f\n" % vref)
+
+        return vref           
+    else:   
+        return vref
+    
+def volume_from_F_serie(tmin, tmax, npoints, fact_plot=10, debug=False, expansion=False, degree=4, 
+                        fit_alpha=False, export=False, export_alpha=False):
+    
+    """
+    Volume and thermal expansion (at zero pressure) in a range of temperatures,
+    computed by the minimization of the Helmholtz free energy function.
+    
+    Args:
+        tmin, tmax, npoints: minimum, maximum and number of points defining
+                             the T range
+        fact_plot: factor used to compute the number of points for the plot
+                   (default 10)
+        debug: debugging information (default False)
+        expansion: computation of thermal expansion (default False)
+        degree: if expansion=True, in order to compute the thermal expansion
+                a log(V) vs T polynomial fit of degree 'degree' is performed
+                (default 4)
+        fit_alpha: thermal expansion is fitted to a power serie (default False)
+        export: list of computed volume is exported (default False)
+        export_alpha: thermal expansion coefficients of the power serie
+                      are exported (default False)
+                      
+    Note:
+        Thermal expansion is computed from a log(V) versus T polynomial fit 
+    """
+    
+    t_list=np.linspace(tmin, tmax, npoints)
+    v_list=list(volume_from_F(it, debug=debug) for it in t_list)
+    
+    if export:
+       return v_list
+    
+    plt.figure()
+    plt.plot(t_list, v_list, "k-")
+    plt.xlabel("T (K)")
+    plt.ylabel("V (A^3)")
+    plt.title("Volume vs Temperature at zero pressure")
+    plt.show()
+    
+    if expansion:
+       logv=np.log(v_list)
+       fit=np.polyfit(t_list, logv, degree)
+       fitder=np.polyder(fit, 1)
+       alpha_list=np.polyval(fitder, t_list)
+       
+       if export_alpha:
+          return alpha_list
+       
+       t_plot=np.linspace(tmin, tmax, npoints*fact_plot)
+       lv_plot=np.polyval(fit, t_plot)
+       
+       label_fit="Polynomial fit, degree: "+str(degree)
+       plt.figure()
+       plt.title("Log(V) versus T")
+       plt.xlabel("T (K)")
+       plt.ylabel("Log(V)")
+       plt.plot(t_list, logv, "k*", label="Actual values")
+       plt.plot(t_plot, lv_plot, "k-", label=label_fit)
+       plt.legend(frameon=False)
+       plt.show()
+       
+       plt.figure()
+       plt.title("Thermal expansion")
+       plt.xlabel("T (K)")
+       plt.ylabel("Alpha (K^-1)")
+       plt.plot(t_list, alpha_list, "k*", label="Actual values")
+       if fit_alpha:
+          if not flag_alpha:
+             print("\nWarning: no polynomium defined for fitting alpha's")
+             print("Use ALPHA keyword in input file")
+          else:
+             coef_ini=np.ones(lpow_a)
+             alpha_fit, alpha_cov=curve_fit(alpha_fun,t_list,alpha_list,p0=coef_ini)
+             alpha_value=[]
+             for ict in t_plot:
+                 alpha_i=alpha_fun(ict,*alpha_fit)
+                 alpha_value=np.append(alpha_value,alpha_i)
+             plt.plot(t_plot,alpha_value,"k-", label="Power serie fit")
+             
+       plt.legend(frameon=False)
+       plt.show()
+
 def volume_conversion(vv, atojb=True):
     """
     Volume conversion from/to unit cell volume (in A^3) to/from the molar volume
@@ -4004,6 +4189,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
     if comp:
         al_list=np.array([])
         therm_list=np.array([])
+       
         for it in t_list:
             ial=alpha_dir(it,0)            
             al_list=np.append(al_list, ial)
@@ -4014,6 +4200,9 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
         for it in t_list:
             ith=thermal_exp_p(it,0., exit=True)[0]
             therm_list=np.append(therm_list, ith)
+        
+        alpha_from_F=volume_from_F_serie(tmin, tmax, nt, expansion=True, debug=False,\
+                                         export_alpha=True)
         
     v_log=np.log(v_list)
     
@@ -4064,6 +4253,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
     if comp:
        plt.plot(t_list, al_list, "k*", label="From definition (dir)")
        plt.plot(t_list, therm_list, "k+", label="From definition (EoS)")
+       plt.plot(t_list, alpha_from_F, "ko", label="From Volume_from_F")
     
     plt.xlabel("T (K)")
     plt.ylabel("Alpha (K^-1)")
@@ -4090,19 +4280,22 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
        alpha_calc=list(fmt.format(ia) for ia in alpha_calc)
        al_list=list(fmt.format(ia) for ia in al_list)
        therm_list=list(fmt.format(ia) for ia in therm_list)
+       alpha_from_F=list(fmt.format(ia) for ia in alpha_from_F)
        v_list=list(fmt2.format(iv) for iv in v_list)
        t_list=list(fmt3.format(it) for it in t_list)
     
-       serie=(t_list,v_list,alpha_calc,al_list,therm_list)
+       serie=(t_list,v_list,alpha_calc,alpha_from_F,al_list,therm_list)
        df=pd.DataFrame(serie,\
-          index=[' Temp',' V   ','     (1)  ','     (2)  ', '     (3)  '])
+          index=[' Temp',' V   ','     (1)  ','     (2)  ', '     (3)  ', '     (4)  '])
        df=df.T
        print("")
        print(df.to_string(index=False))   
        print("")
        print("(1) from V(T) fit")
-       print("(2) from the definition ('dir' computation)")
-       print("(3) from the definition ('EoS' computation)")
+       print("(2) from V(T) from F fit")
+       print("(3) from the definition ('dir' computation)")
+       print("(4) from the definition ('EoS' computation)")
+       
     else:
       fmt="{:4.2e}"
       fmt2="{:11.4f}"
@@ -6133,8 +6326,8 @@ def upload_mineral_2(tmin,tmax,points=12,HT_lim=0., g_deg=1, model=1, mqm='py',\
      
     if dir:
         volume_ctrl.set_shift(0.)
-        vol=volume_dir(298,0)
-        s0, dum=entropy_v(298,vol)
+        vol=volume_dir(298.15,0)
+        s0, dum=entropy_v(298.15,vol)
     else:
         s0,dum=entropy_p(298.15,0.0001,prt=False)
     
@@ -6901,7 +7094,7 @@ def main():
     global flag_view_input, flag_dir, f_fix, vol_opt, alpha_opt, info, lo, gamma_fit
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
-    global path_orig, p_stat, delta_ctrl
+    global path_orig, p_stat, delta_ctrl, volume_F_ctrl
     
     ctime=datetime.datetime.now()
     version="2.4.2 - 27/07/2021"
@@ -6947,6 +7140,7 @@ def main():
     disp=disp_class()
     volume_correction=vol_corr_class()
     volume_ctrl=volume_control_class()
+    volume_F_ctrl=volume_F_control_class()
     delta_ctrl=delta_class()
       
     vol_opt.on()
