@@ -4412,11 +4412,24 @@ def alpha_dir_serie(tmin, tmax, nt, pp, fit=True, prt=True):
     plt.ylabel("Alpha (K^-1)")
     plt.title("Thermal expansion")
     plt.show()
-        
-    if not prt and fit:
-        return alpha_fit
     
+    if prt:
+       fmt1="{:5.1f}"
+       fmt2="{:4.2e}"
+       t_l=list(fmt1.format(it) for it in t_l)
+       alpha_l=list(fmt2.format(ia) for ia in alpha_l)
+       serie=(t_l, alpha_l)
+       df=pd.DataFrame(serie,index=['Temp.','   Alpha  '])
+       df=df.T
+       print("\n")
+       print(df.to_string(index=False))
+       print("")
+       
     volume_ctrl.shift=0.
+        
+    if fit:
+        return alpha_fit
+       
     
 def alpha_dir_fun(tt,*coef):
     """
