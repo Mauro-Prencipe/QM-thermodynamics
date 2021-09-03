@@ -4183,8 +4183,8 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
         deg: degree of the spline (or polynomial) fit of the V(T) values (default 4)
         smooth: smoothness parameter of the spline fit (default 0.001);
                 relevant if type='spline'
-        comp: if True, the thermal expansion from its original definition
-              is also computed and plotted (default False)
+        comp: if True, the thermal expansions from other methods
+              are also computed and plotted (default False)
         fit: if True, a power serie fit is performed and parameters are returned
         trim: if trim > 0. and if fit=True, the power serie fit is done over the
               [tmin, tmax-trim] T-range, to avoid possible fitting problems at the end of the
@@ -4310,7 +4310,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
           plt.plot(t_list, al_list, "k*", label="From definition (dir)")
        
        if flag[1]: 
-          plt.plot(t_list, therm_list, "k+", label="From definition (EoS)")
+          plt.plot(t_list, therm_list, "k+", label="From (dP/dT)_V and EoS")
         
     plt.xlabel("T (K)")
     plt.ylabel("Alpha (K^-1)")
