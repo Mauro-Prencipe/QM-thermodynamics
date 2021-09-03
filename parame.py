@@ -6,7 +6,7 @@
 # in order to calculate the entropy and the specific heat at constant volume   
 # Parameters used by the entropy_v function
 delta=10.
-nump=16
+nump=8
 degree=4
 
 # Same as above parameters, used by the thermal_exp_v function used
