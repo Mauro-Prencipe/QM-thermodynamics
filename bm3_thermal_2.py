@@ -4351,7 +4351,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
        print("(1) from V(T) fit")
        print("(2) from V(T) from F fit")
        print("(3) from the definition ('dir' computation)")
-       print("(4) from the definition ('EoS' computation)")
+       print("(4) From (dP/dT)_V and EoS")
        
     else:
       fmt="{:4.2e}"
