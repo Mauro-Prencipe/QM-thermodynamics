@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.4.2 27/07/2021
+# Version 2.4.3 03/09/2021
 #
 
 # Comment the following three lines to produce the documentation 
@@ -246,6 +246,12 @@ class data_info():
         print("EoS shift: %3.1f; Quad_shrink: %2i; T_dump: %3.1f; Dump fact.: %2.1f, T_last %4.1f" % \
               (volume_ctrl.shift, volume_ctrl.quad_shrink, volume_ctrl.t_dump, volume_ctrl.dump,\
                volume_ctrl.t_last))
+        print("Upgrade shift: %r" % volume_ctrl.upgrade_shift)
+            
+        print("\n**** Volume driver for volume_from_F function ****")
+        print("In addition to the attributes set in the parent volume_control_class:")      
+        print("shift: %3.1f, flag: %r, upgrade_shift: %r" % (volume_F_ctrl.get_shift(), \
+               volume_F_ctrl.get_flag(), volume_F_ctrl.get_upgrade_status()))
             
         print("\n**** Numerical T-derivatives driver class (delta_ctrl) ****")
         if not delta_ctrl.adaptive:
@@ -773,6 +779,15 @@ class volume_control_class():
         self.t_last=t_last
         
 class volume_F_control_class():
+    """
+    Class controlling some parameters relevant for the computation of 
+    volume and thermal expansion by using the volume_from_F function.
+    Precisely, the initial volume (around which the refined volume vref
+    is to be searched) is set to vini+shift, where vini is the 
+    output from the volume_dir, whereas shift is from this class.
+    Shift is computed as the difference vref-vini; it can be upgraded
+    provided the flag upgrade_shift is set to True.         
+    """
     def __init__(self):
         self.shift=0.
         self.upgrade_shift=False
@@ -789,6 +804,10 @@ class volume_F_control_class():
         self.upgrade_shift=False
     def get_shift(self):
         return self.shift
+    def get_upgrade_status(self):
+        return self.upgrade_shift
+    def get_flag(self):
+        return self.flag
         
 class delta_class():
     """
@@ -2520,7 +2539,7 @@ def volume_from_F(tt, shrink=10., npoints=60, debug=False):
     d2=delta/2.
     
     vini=volume_dir(tt,0)
-    if volume_F_ctrl.flag:
+    if volume_F_ctrl.get_flag():
        shift=volume_F_ctrl.get_shift()
        vini=vini+shift
        
@@ -2539,7 +2558,7 @@ def volume_from_F(tt, shrink=10., npoints=60, debug=False):
     fref=np.polyval(fit, vref)
     
     v_shift=vref-vini
-    if volume_F_ctrl.flag & volume_F_ctrl.upgrade_shift:
+    if volume_F_ctrl.get_flag() & volume_F_ctrl.get_upgrade_status():
        volume_F_ctrl.set_shift(v_shift)
     
     vplot=np.linspace(vref-d2/shrink, vref+d2/shrink, npoints)
@@ -2571,7 +2590,7 @@ def volume_from_F(tt, shrink=10., npoints=60, debug=False):
         return vref
     
 def volume_from_F_serie(tmin, tmax, npoints, fact_plot=10, debug=False, expansion=False, degree=4, 
-                        fit_alpha=False, export=False, export_alpha=False):
+                        fit_alpha=False, export=False, export_alpha=False, export_alpha_fit=False):
     
     """
     Volume and thermal expansion (at zero pressure) in a range of temperatures,
@@ -2591,9 +2610,28 @@ def volume_from_F_serie(tmin, tmax, npoints, fact_plot=10, debug=False, expansio
         export: list of computed volume is exported (default False)
         export_alpha: thermal expansion coefficients of the power serie
                       are exported (default False)
+        export_alpha_fit: coefficients of the power serie fitting the alpha's
+                          are exported
                       
     Note:
-        Thermal expansion is computed from a log(V) versus T polynomial fit 
+        Thermal expansion is computed from a log(V) versus T polynomial fit
+        
+    Note: 
+        if export is True, the volume list only is exported (and the function
+        returns) no matter if expansion is also True (that is, thermal expansion
+        is not computed). Likewise, if export_alfa is True, no fit of the thermal
+        expansion data on a power serie is performed (and, therefore, such data from
+        the fit cannot be exported).
+          
+    Note:
+        Having exported the coefficients of the power serie fitting the alpha values,
+        they can be uploaded to a particular phase by using the load_alpha method
+        of the mineral class; e.g. py.load_alpha(alpha_fit, power_a)
+        
+    Examples:
+        >>> alpha_fit=volume_from_F_serie(100, 400, 12, expansion=True, fit_alpha=True, export_alpha_fit=True)
+        >>> py.load_alpha(alpha_fit, power_a)
+        >>> py.info()
     """
     
     t_list=np.linspace(tmin, tmax, npoints)
@@ -2642,15 +2680,18 @@ def volume_from_F_serie(tmin, tmax, npoints, fact_plot=10, debug=False, expansio
              print("Use ALPHA keyword in input file")
           else:
              coef_ini=np.ones(lpow_a)
-             alpha_fit, alpha_cov=curve_fit(alpha_fun,t_list,alpha_list,p0=coef_ini)
+             alpha_fit, alpha_cov=curve_fit(alpha_dir_fun,t_list,alpha_list,p0=coef_ini)
              alpha_value=[]
              for ict in t_plot:
-                 alpha_i=alpha_fun(ict,*alpha_fit)
+                 alpha_i=alpha_dir_fun(ict,*alpha_fit)
                  alpha_value=np.append(alpha_value,alpha_i)
              plt.plot(t_plot,alpha_value,"k-", label="Power serie fit")
              
        plt.legend(frameon=False)
        plt.show()
+       
+       if export_alpha_fit & flag_alpha & fit_alpha:
+          return alpha_fit
 
 def volume_conversion(vv, atojb=True):
     """
@@ -4182,6 +4223,14 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
     t_list=np.linspace(tmin, tmax, nt)
     v_list=np.array([])
     
+#   internal flag: complete calculation if all the three flags
+#   are set to True. 
+#   flag[0]: calculation from volume_dir
+#   flag[1]: calculation from EoS
+#   flag[2]: calculation from volume_from_F
+
+    flag=[True, True, True]
+    
     for it in t_list:
         iv=volume_dir(it,0)
         v_list=np.append(v_list,iv)
@@ -4190,18 +4239,21 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
         al_list=np.array([])
         therm_list=np.array([])
        
-        for it in t_list:
-            ial=alpha_dir(it,0)            
-            al_list=np.append(al_list, ial)
-        
-        if f_fix.flag:    
-           reset_fix()
+        if flag[0]:
+           for it in t_list:
+               ial=alpha_dir(it,0)            
+               al_list=np.append(al_list, ial)
+               
+        if flag[1]: 
+           if f_fix.flag:    
+              reset_fix()
            
-        for it in t_list:
-            ith=thermal_exp_p(it,0., exit=True)[0]
-            therm_list=np.append(therm_list, ith)
-        
-        alpha_from_F=volume_from_F_serie(tmin, tmax, nt, expansion=True, debug=False,\
+           for it in t_list:
+               ith=thermal_exp_p(it,0., exit=True)[0]
+               therm_list=np.append(therm_list, ith)
+               
+        if flag[2]:
+           alpha_from_F=volume_from_F_serie(tmin, tmax, nt, expansion=True, debug=False,\
                                          export_alpha=True)
         
     v_log=np.log(v_list)
@@ -4251,10 +4303,15 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
     plt.figure()
     plt.plot(t_plot, alpha_plot, "k-", label="From V(T) fit")
     if comp:
-       plt.plot(t_list, al_list, "k*", label="From definition (dir)")
-       plt.plot(t_list, therm_list, "k+", label="From definition (EoS)")
-       plt.plot(t_list, alpha_from_F, "ko", label="From Volume_from_F")
-    
+       if flag[2]:
+          plt.plot(t_list, alpha_from_F, "ko", label="From Volume_from_F")
+          
+       if flag[0]:
+          plt.plot(t_list, al_list, "k*", label="From definition (dir)")
+       
+       if flag[1]: 
+          plt.plot(t_list, therm_list, "k+", label="From definition (EoS)")
+        
     plt.xlabel("T (K)")
     plt.ylabel("Alpha (K^-1)")
     plt.xlim(tmin, tmax)
@@ -4273,7 +4330,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
         plt.title("Alpha: power serie fit")
         plt.show()
         
-    if comp:    
+    if comp & flag[0] & flag[1] & flag[2]:    
        fmt="{:4.2e}"
        fmt2="{:11.4f}"
        fmt3="{:6.1f}"
@@ -7097,7 +7154,7 @@ def main():
     global path_orig, p_stat, delta_ctrl, volume_F_ctrl
     
     ctime=datetime.datetime.now()
-    version="2.4.2 - 27/07/2021"
+    version="2.4.3 - 03/09/2021"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
