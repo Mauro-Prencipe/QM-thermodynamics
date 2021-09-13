@@ -2323,8 +2323,8 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
     at which the two pressures are equal.
     
     A number of parameters are used to control the computation. They are
-    all defined by the volume-control driver (volume-ctrl). Convenient
-    values are already set by default, but can be changed by using
+    all defined by the volume-control driver (volume_ctrl). Convenient
+    values are already set by default, but they can be changed by using
     the method volume_ctrl.set_all. Use the info.show method to get such
     values under the 'volume driver section'.
 
@@ -3974,8 +3974,8 @@ def thermal_exp_v(tt,vv,plot=False,**kwargs):
 
 def thermal_exp_p(tt,pp,plot=False,exit=False,**kwargs):
     """
-    Thermal expansion at given temperature and pressure
-    
+    Thermal expansion at given temperature and pressure, based on
+    the computation of K*alpha product.    
     Args:
         tt:               temperature
         pp:               pressure
@@ -4019,6 +4019,11 @@ def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,\
     Thermal expansion in a temperature range, at a given pressure (pp), 
     and (optional) fit with a polynomium whose powers are specified 
     in the input.txt file    
+    
+    Note:
+        The computation is perfomed by using the thermal_exp_v function
+        that is based on the evaluation of K*alpha product (for details, 
+        see the documentation of the thermal_exp_v function).
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4138,7 +4143,19 @@ def dalpha_dt(tt,pp,**kwargs):
     return np.polyval(dfit,tt)
 
 def alpha_dir(tt,pp):
+    """
+    Calculation of the thermal expansion at a given temperature and 
+    pressure. The computation is done by following the definition of
+    alpha, as alpha=1/V (dV/dT)_P.
     
+    Args:
+        tt: temperature (K)
+        pp: pressure (GPa)
+        
+    Note: 
+        The calculation of the volume at a ginen temperature is done
+        by the volume_dir function
+    """
     dt=delta_ctrl.get_delta()
     nt=delta_ctrl.get_nump()
     dt2=dt/2.
@@ -4377,7 +4394,20 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
        return fit_al
 
 def alpha_dir_serie(tmin, tmax, nt, pp, fit=True, prt=True):
+    """
+    Thermal expansion in a given range of temperatures. The computation
+    is done by using the alpha_dir function that, in turn, makes use
+    of the volume_dir function (EoS-free computation of the volume at 
+    a given pressure and temperature).
     
+    Args:
+        tmin, tmax, nt: minimum, maximum temperatures (K) and number of points 
+                        in the T-range
+        pp: pressure (GPa)
+        fit: if True, a power serie fit of the alpha values is performed
+             (see ALPHA keyword in the input file)
+        prt: if True, a detailed output is printed.
+    """    
     t_list=np.linspace(tmin,tmax,nt)
     
     t_l=np.array([])
