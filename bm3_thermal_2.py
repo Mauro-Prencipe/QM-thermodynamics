@@ -2284,6 +2284,15 @@ def pressure(tt,vv,**kwargs):
        return round(bm3(vv,*eos)*conv/1e-21,3)
 
 def pressure_dir(tt,vv):
+    """
+    Computes the pressure at a given volume and temperature from
+    the numerical derivative of the Helmholtz free energy with
+    respect to the volume (at constant temperature).
+    
+    Args:
+        tt: temperature (K)
+        vv: volume (A^3)
+    """
     
     deg=pr.degree_v
     
@@ -3620,6 +3629,25 @@ def free_fit(temperature):
     return energy_tot 
 
 def free_fit_vt(tt,vv):
+    """
+    Computes the Helmholtz free energy at a given pressure and volume.
+    
+    Free energy is computed by addition of several contributions. Precisely:
+        (1) static contribution from a volume-integrated BM3 EoS
+        (2) vibrational contribution from optical vibrational modes
+        (3) vibrational contribution from phonon dispersion (supercell calculations)
+        (4) vibrational contribution from acoustic modes (modified Kieffer model)
+        (5) vibrational contribution from anharmonic mode(s)
+    
+    Contributions (1) and (2) are always included; contributions (3) and (4)
+    are mutually exclusive and are respectively activated by the keywords
+    DISP and KIEFFER in the input file; anharmonic contributions (5) are activated
+    by the keyword ANH in the input file.
+    
+    Args:
+        tt: temperature (K)
+        vv: volume (A^3)
+    """
     e_static=v_bm3(vv,*info.popt)
     enz=0
     fth=0
