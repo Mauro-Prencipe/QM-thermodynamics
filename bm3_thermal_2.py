@@ -2097,7 +2097,15 @@ def bmx_tem(tt,**kwargs):
            1. kp fixed or free
            2. frequencies not fitted, or fitted by
               polynomials or splines
-           3. 3^rd or 4^th order BM EoS          
+           3. 3^rd or 4^th order BM EoS   
+           
+    Note:
+        bmx_tem includes energy contributions from static and vibrational
+        optical modes; acoustic contributions from the modified Kieffer
+        model are included, provided the KIEFFER keyword is in the input
+        file; contributions from anharmonic modes are included, provided 
+        the ANH keyword is in the input file. NO dispersion correction
+        is included (even is the DISP keyword is provided). 
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -2153,6 +2161,13 @@ def bmx_tem(tt,**kwargs):
             
     return [free_energy, pterm, pcov_term]
 
+def bulk_conversion(kk):
+    """
+    Bulk modulus unit conversion (from atomic units to GPa)
+    """
+    kc=kk*conv/1e-21
+    print("Bulk modulus: %8.4e a.u. = %6.2f GPa" % (kk, kc))
+    
 def stop():
    """
    used to exit from the program in case of fatal exceptions
@@ -2336,7 +2351,6 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
     values are already set by default, but they can be changed by using
     the method volume_ctrl.set_all. Use the info.show method to get such
     values under the 'volume driver section'.
-
     """  
     vol_opt.on()
     
@@ -2514,6 +2528,7 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
        return vmin 
    
 def volume_from_F(tt, shrink=10., npoints=60, debug=False):
+    
     """
     Computation of the equilibrium volume at any given temperature 
     and at 0 pressure. The algorithm looks for the minimum of the 
@@ -3576,6 +3591,15 @@ def free_fit(temperature):
        to the frequencies of each vibrational mode, as 
        functions of volume. It is activated by the keyword
        FITVOL in the input.txt file
+       
+    Note:
+        Possible contributions from anharmonicity (keyword ANH in the input
+        file) or from a modified Kieffer model (keyword KIEFFER in the input file)
+        are included. NO contribution from DISP modes is considered (phonon dispersion 
+        from a supercell calculation).      
+        
+    Note: the volumes at which the free energy refers are defined in the fit_vol
+          list
     """
     energy_tot=[]
     eianh=0.
