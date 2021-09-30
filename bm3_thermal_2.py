@@ -20,6 +20,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick 
+# from matplotlib import rc
 
 import pandas as pd
 import sympy as sym
@@ -38,6 +39,37 @@ import_database()
 
 mpl.rcParams['figure.dpi']= 80
 
+class latex_class():
+    """
+    Set up for the use of LaTeX for axis labels and titles; sets of parameters
+    for graphics output.
+    """
+    def __init__(self):
+        self.flag=False
+        self.dpi=300
+        self.font_size=14
+        self.tick_size=12
+        self.ext='jpg'
+        mpl.rc('text', usetex=False)
+    def on(self):
+        self.flag=True
+        mpl.rc('text', usetex=True)
+    def off(self):
+        self.flag=False
+        mpl.rc('text', usetex=False)
+    def set_param(self, dpi=300, fsize=14, tsize=12, ext='jpg'):
+        self.dpi=dpi
+        self.font_size=fsize
+        self.tick_size=tsize
+        self.ext=ext
+    def get_dpi(self):
+        return self.dpi
+    def get_fontsize(self):
+        return self.font_size
+    def get_ext(self):
+        return self.ext        
+    def get_tsize(self):
+        return self.tick_size
 
 class flag:
     def __init__(self,value):
@@ -3235,14 +3267,14 @@ def bulk_modulus_adiabat(tt,pp,noeos=False, prt=True,**kwargs):
           fixpar=True
      
     if fixpar:    
-       vol=new_volume(tt,pp,fix=fix_value)
+       vol=new_volume(tt,pp,fix=fix_value)[0]
        alpha,kt_dum,pr=thermal_exp_v(tt,vol,False,fix=fix_value)
-       kt=bulk_modulus_p(tt,pp,noeos=noeos,fix=fix_value)
+       kt,_=bulk_modulus_p(tt,pp,noeos=noeos,fix=fix_value)
        ent,cv=entropy_v(tt,vol,False,False,fix=fix_value)
     else:
-       vol=new_volume(tt,pp) 
+       vol=new_volume(tt,pp)[0] 
        alpha,kt_dum,pr=thermal_exp_v(tt,vol,False)
-       kt=bulk_modulus_p(tt,pp,noeos=noeos)
+       kt,_=bulk_modulus_p(tt,pp,noeos=noeos)
        ent,cv=entropy_v(tt,vol,False,False)
        
     volm=(vol*avo*1e-30)/zu
@@ -4064,8 +4096,8 @@ def thermal_exp_p(tt,pp,plot=False,exit=False,**kwargs):
        print("Volume:              %8.4f A^3\n" % vol)
 
 
-def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,\
-                HTlim=0.,degree=1, save='',dpi=300, g_deg=1, **kwargs):
+def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,HTlim=0.,\
+                degree=1, save='', g_deg=1, tex=False, title=True, **kwargs):
     
     """
     Thermal expansion in a temperature range, at a given pressure (pp), 
@@ -4102,15 +4134,31 @@ def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,\
     if HTlim > 0:
         t_range=np.append(t_range,HTlim)
         alpha_serie=np.append(alpha_serie,alpha_limit)
-        
+    
+    dpi=80
+    ext='png'
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ext=latex.get_ext()
+       ticksize=latex.get_tsize()
+       
     fig=plt.figure(10)
     ax=fig.add_subplot(111)
     ax.plot(t_range,alpha_serie,"k*") 
     ax.yaxis.set_major_locator(plt.MaxNLocator(5))
     ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-    ax.set_xlabel("T (K)")
-    ax.set_ylabel("Alpha (K^-1)")
-    plt.title("Thermal expansion") 
+    if latex.flag:
+       ax.set_xlabel("T (K)", fontsize=fontsize)
+       ax.set_ylabel(r'$\alpha$ (K$^{-1}$)', fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+    else:    
+       ax.set_xlabel("T (K)")
+       ax.set_ylabel("Alpha (K^-1)")
+    if title:
+       plt.title("Thermal expansion") 
     if prt:
        serie=(t_range, alpha_serie)
        df=pd.DataFrame(serie,index=['Temp.','alpha'])
@@ -4138,8 +4186,9 @@ def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,\
            alpha_value=np.append(alpha_value,alpha_i)
        plt.plot(t_value,alpha_value,"k-")
     if save !='':
-       plt.savefig(fname=path+'/'+save,dpi=dpi)
+       plt.savefig(fname=path+'/'+save,dpi=dpi, bbox_inches='tight')
     plt.show()
+    latex.off()
     if prt:
         return None
     elif fit:
@@ -5239,7 +5288,8 @@ def gibbs_serie_t(tini, tfin, ntemp, pp, prt=True, **kwargs):
             print("  %6.2f        %8.1f" % (it, ig))
              
 
-def eos_temp(tt,prt=True,update=False,kp_only=False):
+def eos_temp(tt,prt=True,update=False,kp_only=False, save=False, \
+             tex=False, title=True):
     """
     Outputs the EoS (BM3) at a given temperature
     
@@ -5298,18 +5348,38 @@ def eos_temp(tt,prt=True,update=False,kp_only=False):
     vol_max=np.max(volb)
     nvol=pr.nvol_eos
     vol_range=np.linspace(vol_min,vol_max,nvol)
+    
+    if tex:
+       latex.on() 
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ext=latex.get_ext()
+       ticksize=latex.get_tsize()
+       
     fig, ax=plt.subplots()
-    plt.title("F(V) curve at T= %5.2f K" % tt)
-    ax.plot(volb, free_energy, "*")
+    if title:
+       plt.title("F(V) curve at T= %5.2f K" % tt)
+    ax.plot(volb, free_energy, "k*")
     
     if bm4.flag:
-        plt.plot(vol_range, bm4.energy(vol_range, *pterm),'b-')
+        plt.plot(vol_range, bm4.energy(vol_range, *pterm),'k-')
     else:        
-        plt.plot(vol_range, v_bm3(vol_range, *pterm), 'b-')
-    plt.xlabel("V (A^3)")
-    plt.ylabel("F (a.u.)")
+        plt.plot(vol_range, v_bm3(vol_range, *pterm), 'k-')
+    if latex.flag:
+        plt.xlabel("V (\AA$^3$)", fontsize=fontsize)
+        plt.ylabel("F (a.u.)", fontsize=fontsize)
+        plt.xticks(fontsize=ticksize)
+        plt.yticks(fontsize=ticksize)
+    else:    
+        plt.xlabel("V (A^3)")
+        plt.ylabel("F (a.u.)")
+        
     ax.ticklabel_format(axis='y', style='sci', useOffset=False)
+    if save:
+       filename=path+'/eos' + '.' + ext
+       plt.savefig(filename, dpi=dpi, bbox_inches='tight')
     plt.show()
+    latex.off()
     print("\nVolume-Pressure list at %5.2f K\n" % tt)
     for vp_i in volb:
         if bm4.flag:
@@ -5675,7 +5745,18 @@ def freq_spline_p(ifr,tt=300.,pp=0.,prt=True,**kwargs):
         return fr
     
 
-def check_spline(ifr):
+def check_spline(ifr, save=False, title=True, tex=False):
+    """
+    Plot of the frequency as a function of volume
+    
+    Args:
+        ifr: mode number
+        save: if True, the plot is saved in a file
+        dpi: resolution of the plot
+        ext: graphics file format
+        title: if True, a title is written above the plot
+        tex: if True, LaTeX fonts are used in the labels
+    """    
     if not flag_spline.flag:
         print("Spline fit not active: use set_spline")
         return
@@ -5684,18 +5765,51 @@ def check_spline(ifr):
     ifl=[]
     for ivol in int_set:
        ifl=np.append(ifl,lo.data_freq[ifr,ivol+1])
+       
+    dpi=80
+    ext='png'
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ext=latex.get_ext()
+       ticksize=latex.get_tsize()
+       
     plt.figure()
     leg="Mode number "+str(ifr)
     if ifr in exclude.ex_mode:
         leg=leg+"\nExcluded from free energy computation"
     plt.plot(vol,freq,"k-")
     plt.plot(data_vol_freq,ifl,"k*")
-    plt.xlabel("Volume (A^3)")
-    plt.ylabel("Frequency (cm^-1)")
-    plt.title(leg)
+    if latex.flag:
+        plt.xlabel("Volume (\AA$^3$)", fontsize=fontsize)
+        plt.ylabel("Frequency (cm$^{-1}$)", fontsize=fontsize)
+        plt.xticks(fontsize=ticksize)
+        plt.yticks(fontsize=ticksize)
+    else:
+        plt.xlabel("Volume (A^3)")
+        plt.ylabel("Frequency (cm^-1)")
+    if title:
+       plt.title(leg)
+    if save:
+        filename=path + '/mode_' + str(ifr) + '.' + ext
+        plt.savefig(filename, dpi=dpi, bbox_inches='tight')
+        print("Figure saved as %s" % filename)
     plt.show()
+    latex.off()
     
-def check_poly(ifr):
+def check_poly(ifr, save=False, title=True, tex=False):
+    """
+    Plot of the frequency as a function of volume
+    
+    Args:
+        ifr: mode number
+        save: if True, the plot is saved in a file
+        dpi: resolution of the plot
+        ext: graphics file format
+        title: if True, a title is written above the plot
+        tex: if True, LaTeX fonts are used in the labels
+    """    
     if not flag_poly.flag:
         print("Polynomial fit not active: use set_poly")
         return
@@ -5705,16 +5819,38 @@ def check_poly(ifr):
     ifl=[]
     for ivol in int_set:
        ifl=np.append(ifl,lo.data_freq[ifr,ivol+1])
+       
+    dpi=80
+    ext='png'
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ext=latex.get_ext()
+       ticksize=latex.get_tsize()
+       
     plt.figure()
     leg="Mode number "+str(ifr)
     if ifr in exclude.ex_mode:
         leg=leg+"\n Excluded from free energy computation"
     plt.plot(vol,freq,"k-")
     plt.plot(data_vol_freq,ifl,"k*")
-    plt.xlabel("Volume (A^3)")
-    plt.ylabel("Frequency (cm^-1)")
-    plt.title(leg)
+    if latex.flag:
+       plt.xlabel("Volume (\AA$^3$)", fontsize=fontsize)
+       plt.ylabel("Frequency (cm$^{-1}$)", fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+    else:
+        plt.xlabel("Volume (A^3)")
+        plt.ylabel("Frequency (cm^{-1})") 
+    if title:
+       plt.title(leg)
+    if save:
+        filename=path + '/mode_' + str(ifr) + '.' + ext
+        plt.savefig(filename, dpi=dpi, bbox_inches='tight')
+        print("Figure saved as %s" % filename)
     plt.show()
+    latex.off()
     
 def check_spline_total():
     """
@@ -6043,51 +6179,148 @@ def gruneisen(vol, method='poly',plot=True):
     if not plot:
        return grun_list
    
-def gruneisen_therm(tt,pp,ex_data=False,prt=True,**kwargs):
+def gruneisen_therm(tt,pp,ex_data=False,prt=True):
     
     """
-    Gruneisen parameter: alpha*K_S / rho*Cp
+    Gruneisen parameter: alpha*K_T*V/Cv
     
     Args:
         tt:  temperature
         pp:  pressure
+        ex_data: if True, values of volume, constant volume specific heat,
+                 thermal expansion, bulk modulus and gamma are returned
+                 (default False)
+        prt: if True, computed values are printed
         
-    Keyword Args:
-        fix: Kp fixed, if fix=Kp > 0.1   
+    Note:
+        The required bulk modulus (Reuss definition) is computed by
+        the bulk_modulus_p function, with the noeos parameter set to
+        True.        
     """
+       
+    k, vol=bulk_modulus_p(tt,pp,noeos=True)
+
+    ent,cv=entropy_v(tt,vol)
+    alpha=alpha_dir(tt, pp)
     
-    l_arg=list(kwargs.items())
-    fixpar=False
-    for karg_i in l_arg:
-       if 'fix' == karg_i[0]:
-          fix_value=karg_i[1]
-          fixpar=True
-       
-    if fixpar:    
-       vol=new_volume(tt,pp, fix=fix_value)
-    else:
-       vol=new_volume(tt,pp)
-       
-    volume=(vol/zu)*avo*1e-30      # volume of a mole in m^3
-    density=1/volume               # density in mole/m^3
- 
-    if fixpar:
-        ent,cv=entropy_v(tt,vol,fix=fix_value)
-        alp,k,p=thermal_exp_v(300,vol,fix=fix_value)
-    else:
-        ent,cv=entropy_v(tt,vol)
-        alp,k,p=thermal_exp_v(300,vol)
+    volume=(vol/zu)*avo*1e-30      # volume of a mole in m^3       
         
-    grun_th=alp*k*1e9/(density*cv)
+    grun_th=alpha*volume*k*1e9/cv
     
     if prt:
       print("\nGruneisen parameter (adimensional): %6.3f\n" % grun_th)
-      print("Thermal expansion: %6.2e (K^-1)" % alp)
+      print("Thermal expansion: %6.2e (K^-1)" % alpha)
       print("Bulk modulus: %6.2f (GPa)" % k)
       print("Specific heat at constant volume: %6.2f (J/mol K)" % cv) 
     
     if ex_data:
-       return volume[0],cv,alp[0],k[0],grun_th[0]
+       return vol,cv,alpha,k,grun_th
+   
+   
+def q_parameter(pfin=5, temp=298.15, npoint=12):
+    
+    """
+    Calculation of the parameter q of the equation 
+    
+    gamma/gamma_0 = (V/V_0)^q
+    
+    The Gruneisen parameter is evaluated at constant temperature for
+    a range of pressures, for which the corresponding volumes are computed,
+    by using the gruneisen_therm function.
+
+    Args:
+        pfin: final (maximum) pressure (GPa; default 5)
+        temp: temperature (K; default 298.15)
+        npoint: number of points in the P range (default 12)
+    """
+    
+    p_list=np.linspace(0., pfin, npoint)
+    res=list(gruneisen_therm(temp, ip, ex_data=True, prt=False) for ip in p_list)
+    res=np.array(res)
+    v_list=res[:,0]
+    gr_list=res[:,4]
+    k_list=res[:,3]
+    
+    r_gr=gr_list/gr_list[0]
+    r_v=v_list/v_list[0]
+    r_k=k_list/k_list[0]
+    
+    qini=[1]
+    
+    q,_=curve_fit(q_parameter_func, r_v, r_gr, p0=qini)
+    q_ref=q[0]
+    
+    rv_plot=np.linspace(np.min(r_v), np.max(r_v), 60)
+    gr_plot=q_parameter_func(rv_plot, q_ref)
+    
+    plt.figure()
+    plt.plot(r_v, r_gr, "k*")
+    plt.plot(rv_plot, gr_plot, "k-")
+    plt.xlabel("V/V0")
+    plt.ylabel("gr/gr_0")
+    plt.title("q-plot")
+    plt.show()
+    
+    print("Temperature:           %5.1f K" % temp)
+    print("Maximum pressure:      %5.1f GPa" % pfin)
+    print("Volume at pressure 0:  %7.3f A^3" % v_list[0])
+    print("Gamma at pressure 0:   %7.3f" % gr_list[0])
+    print("q value:               %7.3f" % q_ref)
+    
+    
+def q_parameter_func(rv,q):
+    return rv**q
+
+def delta_T_parameter(tmax, npoint=8, tref=298.15, out=False):
+    """
+    Anderson-Gruneisen parameter delta_T
+
+    K_T(T) = K_T(T0)*(V0/V(T))^delta_T    
+    """
+    
+    t_list=np.linspace(tref, tmax, npoint)
+    
+    kv=list(bulk_modulus_p(it, 0., noeos=True) for it in t_list)
+    kv=np.array(kv)
+    
+    kl=kv[:,0]
+    vl=kv[:,1]
+    
+    k0=kl[0]
+    v0=vl[0]
+    rvl=v0/vl
+    rkl=kl/k0
+    
+    d_ini=[0.]
+    d_t,_=curve_fit(delta_T_func, rvl, rkl, p0=d_ini)
+    delta_t=d_t[0]
+    
+    print("Determination of the Anderson-Gruneisen parameter\n")
+    print("T_ref = %5.2f K;  T_max = %5.2f" % (tref, tmax))
+    
+    rv_plot=np.linspace(np.min(rvl), np.max(rvl), npoint*10)
+    rk_plot=list(delta_T_func(irv,delta_t) for irv in rv_plot)
+    rk_plot=np.array(rk_plot)
+        
+    
+    plt.show()
+    plt.plot(rv_plot, rk_plot,"k-",label="Fit")
+    plt.plot(rvl,rkl,"k*", label="Actual values")
+    plt.xlabel("V0/V")
+    plt.ylabel("K/K0")
+    plt.title("K/K0 = (V0/V)^delta_T plot")
+    plt.legend(frameon=False)
+    plt.show()
+    
+    
+    print("delta_T = %5.2f" % delta_t)
+    
+    if out:
+       return delta_t
+    
+def delta_T_func(rv, d_t):
+    return rv**d_t    
+    
     
 def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000,degree=1,g_deg=1, ex=False):
     
@@ -7246,7 +7479,7 @@ def main():
     global flag_view_input, flag_dir, f_fix, vol_opt, alpha_opt, info, lo, gamma_fit
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
-    global path_orig, p_stat, delta_ctrl, volume_F_ctrl
+    global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex
     
     ctime=datetime.datetime.now()
     version="2.4.3 - 03/09/2021"
@@ -7294,6 +7527,7 @@ def main():
     volume_ctrl=volume_control_class()
     volume_F_ctrl=volume_F_control_class()
     delta_ctrl=delta_class()
+    latex=latex_class()
       
     vol_opt.on()
     alpha_opt.on()    
