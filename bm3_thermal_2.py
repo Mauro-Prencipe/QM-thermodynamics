@@ -41,7 +41,7 @@ mpl.rcParams['figure.dpi']= 80
 
 class latex_class():
     """
-    Set up for the use of LaTeX for axis labels and titles; sets of parameters
+    Setup for the use of LaTeX for axis labels and titles; sets of parameters
     for graphics output.
     """
     def __init__(self):
@@ -58,6 +58,18 @@ class latex_class():
         self.flag=False
         mpl.rc('text', usetex=False)
     def set_param(self, dpi=300, fsize=14, tsize=12, ext='jpg'):
+        """
+        Args:
+            dpi: resolution of the graphics file (default 300)
+            fsize: size of the labels of the axes in points (default 14)
+            tsize: size of the ticks in points (default 12)
+            ext: extension of the graphics file (default 'jpg'); this argument
+                 is only used in those routines where the name of the file is
+                 automatically produced by the program (e.g. check_poly or
+                 check_spline functions). In other cases, the extension is
+                 directly part of the name of the file given as argument to 
+                 the function itself, and 'ext' is ignored. 
+        """
         self.dpi=dpi
         self.font_size=fsize
         self.tick_size=tsize
@@ -4768,7 +4780,7 @@ def compare_exp(graph_exp=True, unit='j' ,save="",dpi=300,**kwargs):
       
       
 def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=False, \
-             fit=True,graph=True,save='',dpi=300,**kwargs):
+             fit=True, t_max=0., graph=True, save='', tex=False, title=True, **kwargs):
     
     """
     Outputs a list of Cp values (J/mol K) in a given temperature range,
@@ -4787,6 +4799,9 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
                gamma(T) fit obtained in the [tini,tfin] range. For T > tfin 
                (and up to HTlim) Cp is computed as the product of Cv (from the 
                Einstein's model) and the extrapolated gamma.  
+        t_max: maximum temperature at which the power series Cp(T) fit is 
+               done. If t_max=0. (default), tmax=HTlim. The parameter is
+               relevant only if HTlim is not zero.
         fix (optional): keeps Kp fixed at the value Kp=fix if
                         fix > 0.1
         prt (optional): print a table of Cp(T) values if prt=True (default)
@@ -4820,7 +4835,12 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
        dlflag=True
        print("\n*** High temperature Cp estimation from the Dulong-Petit limit\n")
        print(" T limit: %5.2f" % HTlim)
-       t_extra=np.linspace(tfin+20,HTlim,16)
+       
+       if t_max < 0.001:
+          t_max=HTlim
+           
+       t_extra=np.linspace(tfin+20,t_max,16)
+       
        cp_lim=np.array([])
        if model==1:
           ein_t=einstein_t(tini,tfin,12,HTlim,dul=True)
@@ -4828,6 +4848,7 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
           ein_t=einstein_t(tini,tfin,12,HTlim,dul=True,model=2) 
        pol_gamma=gamma_estim(tini,tfin,npoint=12,g_deg=g_deg)
        print("Gamma estimation (extrapolation from lower T values)\n")
+       
        for ix in t_extra:  
            if model==1:
               cv_ix=einstein_fun(ix,ein_t[0])
@@ -4858,6 +4879,13 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
        df2=df.round(2)
        print(df2.to_string(index=False))
     if graph:
+       dpi=80
+       if tex:
+           latex.on()
+           dpi=latex.get_dpi()
+           fontsize=latex.get_fontsize()
+           ticksize=latex.get_tsize() 
+           
        plt.figure(6)
        plt.plot(t_serie,cp_serie,"k*")
     if fit:
@@ -4870,7 +4898,7 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
             warnings.simplefilter("ignore")
             cp_fit, cp_cov=curve_fit(cp_fun,t_serie,cp_serie,p0=coef_ini)
        if dlflag:
-          tfin=HTlim
+          tfin=t_max
        t_value=np.linspace(tini,tfin,pr.ntemp_plot_cp)      
        cp_value=[]
        for ict in t_value:
@@ -4880,12 +4908,20 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
           plt.plot(t_value,cp_value,"k-")
     
     if graph:
-       plt.xlabel("T(K)")
-       plt.ylabel("Cp (J/mol K)")
-       plt.title("Specific heat as a function of T")
+       if latex.flag:
+          plt.xlabel("T (K)", fontsize=fontsize)
+          plt.ylabel("$C_P$ (J/mol K)", fontsize=fontsize)
+          plt.xticks(fontsize=ticksize)
+          plt.yticks(fontsize=ticksize)
+       else: 
+          plt.xlabel("T(K)")
+          plt.ylabel("Cp (J/mol K)")
+       if title:   
+          plt.title("Specific heat as a function of T")
        if save !='':
-          plt.savefig(fname=path+'/'+save,dpi=dpi)
+          plt.savefig(fname=path+'/'+save,dpi=dpi, bbox_inches='tight')
        plt.show()
+       latex.off()
     if prt:
        return None
     elif fit:
@@ -4920,7 +4956,7 @@ def gamma_calc(tt,pol):
     
 
 def bulk_serie(tini,tfin,npoint,fit=True,degree=2,update=False,\
-               save='',dpi=300,**kwargs):
+               save='', tex=False, title=True, **kwargs):
     """
     Computes the bulk modulus K0 as a function of temperature in a given
     T range
@@ -4957,12 +4993,27 @@ def bulk_serie(tini,tfin,npoint,fit=True,degree=2,update=False,\
            [free_energy, pterm, pcov_term]=bmx_tem(ict)
         k0t=pterm[1]*conv/1e-21
         b_serie=np.append(b_serie,k0t)
+     
+    dpi=80    
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ticksize=latex.get_tsize()
+       
     plt.figure(7)
     plt.plot(t_serie,b_serie,"k*")
-    plt.title("Bulk modulus (K0)")
-    plt.xlabel("T(K)")
-    plt.ylabel("K (GPa)")
-    plt.title("Bulk modulus as a function of T")
+    if title:
+       plt.title("Bulk modulus as a function of T")
+    if latex.flag:
+       plt.xlabel("T (K)", fontsize=fontsize)
+       plt.ylabel("$K_0$ (GPa)", fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+    else:        
+       plt.xlabel("T (K)")
+       plt.ylabel("K0 (GPa)")
+    
     if fit:
         fit_b=np.polyfit(t_serie,b_serie,degree)
         b_fit=np.polyval(fit_b,t_serie)
@@ -4972,8 +5023,9 @@ def bulk_serie(tini,tfin,npoint,fit=True,degree=2,update=False,\
         print(fit_b)
         np.set_printoptions(formatter=None)
     if save !='':
-       plt.savefig(fname=path+'/'+save,dpi=dpi)
+       plt.savefig(fname=path+'/'+save,dpi=dpi, bbox_inches='tight')
     plt.show()
+    latex.off()
     
     if update:
        return fit_b
@@ -6489,7 +6541,7 @@ def pressure_phonon(tt,vol,method='poly',plot=True):
     else:
        return
 
-def upload_mineral(tmin,tmax,points=12,HT_lim=0., deg=1, g_deg=1, model=1, mqm='py',\
+def upload_mineral(tmin,tmax,points=12,HT_lim=0., t_max=0., deg=1, g_deg=1, model=1, mqm='py',\
                    b_dir=False, blk_dir=False, extra_alpha=True, volc=False):
     """
     Prepares data to be uploaded in the mineral database.
@@ -6510,6 +6562,9 @@ def upload_mineral(tmin,tmax,points=12,HT_lim=0., deg=1, g_deg=1, model=1, mqm='
         HT_lim: Temperature at which the Dulong-Petit limit for Cv
                 is supposed to be reached (default 0.: no Dulong-Petit
                                            model)
+        t_max:  maximum temperature for the power series fit of Cp(T);
+                if t_max=0. (default), t_max=HT_lim. The parameter is
+                relevant oly if HT_lim is not zero.
         model:  Used in the HT_limit estimation of Cv; Einstein model
                 for Cv(T) with one frequency (default model=1), or with
                 2 frequencies (model=2)
@@ -6574,9 +6629,9 @@ def upload_mineral(tmin,tmax,points=12,HT_lim=0., deg=1, g_deg=1, model=1, mqm='
     if model==2:
        mdl=2
     if HT_lim > 0.:
-       fit_cp=cp_serie(tmin,tmax,points,0.0001,HTlim=HT_lim, g_deg=g_deg, model=mdl, prt=False)
+       fit_cp=cp_serie(tmin,tmax,points,0.0001,HTlim=HT_lim, t_max=t_max, g_deg=g_deg, model=mdl, prt=False)
        if extra_alpha:
-          fit_al=alpha_serie(tmin,tmax,points,0.0001,HTlim=HT_lim,degree=deg,prt=False)
+          fit_al=alpha_serie(tmin,tmax,points,0.0001,HTlim=HT_lim, t_max=t_max, degree=deg,prt=False)
        else:
           fit_al=alpha_serie(tmin,tmax,points,0.0001,prt=False)
     else:
@@ -6597,7 +6652,7 @@ def upload_mineral(tmin,tmax,points=12,HT_lim=0., deg=1, g_deg=1, model=1, mqm='
         set_fix(kp_original)
         
         
-def upload_mineral_2(tmin,tmax,points=12,HT_lim=0., g_deg=1, model=1, mqm='py',\
+def upload_mineral_2(tmin,tmax,points=12,HT_lim=0., t_max=0., g_deg=1, model=1, mqm='py',\
                     alpha_dir=False, dir=False, volc=False):
     """
     Prepares data to be uploaded in the mineral database.
@@ -6618,6 +6673,9 @@ def upload_mineral_2(tmin,tmax,points=12,HT_lim=0., g_deg=1, model=1, mqm='py',\
         HT_lim: Temperature at which the Dulong-Petit limit for Cv
                 is supposed to be reached (default 0.: no Dulong-Petit
                 model)
+        t_max:  maximum temperature for the power series fit of Cp(T);
+                if t_max=0. (default), t_max=HT_lim. The parameter is
+                relevant oly if HT_lim is not zero.
         model:  Used in the HT_limit estimation of Cv; Einstein model
                 for Cv(T) with one frequency (default model=1), or with
                 2 frequencies (model=2)
@@ -6724,7 +6782,7 @@ def upload_mineral_2(tmin,tmax,points=12,HT_lim=0., g_deg=1, model=1, mqm='py',\
     if model==2:
        mdl=2
     if HT_lim > 0.:
-       fit_cp=cp_serie(tmin,tmax,points,0.0001,HTlim=HT_lim, g_deg=g_deg, model=mdl, prt=False)
+       fit_cp=cp_serie(tmin,tmax,points,0.0001,HTlim=HT_lim, t_max=t_max, g_deg=g_deg, model=mdl, prt=False)
     else:
        fit_cp=cp_serie(tmin,tmax,points,0.0001, g_deg=g_deg, prt=False)
        
@@ -6772,7 +6830,7 @@ def pressure_react_dir(tt,mqm,prod_spec, prod_coef, rea_spec, rea_coef):
        
       
 def equilib_dir(tini,tfin,npoint, mqm='py', \
-                prod=['py',1], rea=['ens',1.5,'cor', 1]):
+                prod=['py',1], rea=['ens',1.5,'cor', 1], out=False):
     """
     Computes the equilibrium pressure for a reaction involving a
     given set of minerals, in a range of temperatures.
@@ -6863,6 +6921,9 @@ def equilib_dir(tini,tfin,npoint, mqm='py', \
     if flag_volume_max.jwar > 0:
         print("\nWarning on volume repeated %d times" % flag_volume_max.jwar)
         flag_volume_max.reset()
+    
+    if out:
+       return t_list, p_list
     
 def field_dir(tmin,tmax,pmin,pmax,mqm,\
           prod_spec, prod_coef, rea_spec, rea_coef, nx=6, ny=6):
@@ -7548,6 +7609,9 @@ def main():
             path_orig=path
             print("\nFile quick_start.txt found in the master folder")
             print("Input files in '%s' folder" % path)
+            path_file=open("path_file.dat", "w")
+            path_file.write(path)
+            path_file.close()
             instr=np.array([])  
             input_str=''
             while (input_str != 'END'):
