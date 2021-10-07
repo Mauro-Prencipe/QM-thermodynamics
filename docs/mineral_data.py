@@ -1,12 +1,57 @@
 import os
 import numpy as np 
 import scipy
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import pandas as pd
 from scipy import integrate
 
 path='output'
+
+class latex_class():
+    """
+    Setup for the use of LaTeX for axis labels and titles; sets of parameters
+    for graphics output.
+    """
+    def __init__(self):
+        self.flag=False
+        self.dpi=300
+        self.font_size=14
+        self.tick_size=12
+        self.ext='jpg'
+        mpl.rc('text', usetex=False)
+    def on(self):
+        self.flag=True
+        mpl.rc('text', usetex=True)
+    def off(self):
+        self.flag=False
+        mpl.rc('text', usetex=False)
+    def set_param(self, dpi=300, fsize=14, tsize=12, ext='jpg'):
+        """
+        Args:
+            dpi: resolution of the graphics file (default 300)
+            fsize: size of the labels of the axes in points (default 14)
+            tsize: size of the ticks in points (default 12)
+            ext: extension of the graphics file (default 'jpg'); this argument
+                 is only used in those routines where the name of the file is
+                 automatically produced by the program (e.g. check_poly or
+                 check_spline functions). In other cases, the extension is
+                 directly part of the name of the file given as argument to 
+                 the function itself, and 'ext' is ignored. 
+        """
+        self.dpi=dpi
+        self.font_size=fsize
+        self.tick_size=tsize
+        self.ext=ext
+    def get_dpi(self):
+        return self.dpi
+    def get_fontsize(self):
+        return self.font_size
+    def get_ext(self):
+        return self.ext        
+    def get_tsize(self):
+        return self.tick_size
 
 class name_data:
     def __init__(self):
@@ -161,6 +206,7 @@ class mineral:
         s=self.s_tp(tt,pp)
         return g+tt*s
 
+latex=latex_class()
 name_list=name_data()
 ens=mineral("enstatite","en")
 cor=mineral("corindone","cor")
@@ -279,7 +325,8 @@ load_database()
 
 # ----------- Reactions ------------------
 
-def equilib(tini,tfin,npoint,pini=1,prod=['py',1], rea=['ens',1.5,'cor', 1], out=False):
+def equilib(tini,tfin,npoint,pini=1,prod=['py',1], rea=['ens',1.5,'cor', 1],\
+            out=False, tex=False, title=True, save=''):
     """
     Computes the equilibrium pressure for a reaction involving a
     given set of minerals, in a range of temperatures.
@@ -299,7 +346,11 @@ def equilib(tini,tfin,npoint,pini=1,prod=['py',1], rea=['ens',1.5,'cor', 1], out
     Example:
         equilib(300, 500, 12, prod=['py',1], rea=['ens', 1.5, 'cor', 1])
     """
-    
+    if os.path.isfile("path_file.dat"):
+        path_file=open("path_file.dat", "r")
+        path=path_file.read()
+        path=path.rstrip()
+        
     lprod=len(prod)
     lrea=len(rea)
     prod_spec=prod[0:lprod:2]
@@ -374,11 +425,21 @@ def equilib(tini,tfin,npoint,pini=1,prod=['py',1], rea=['ens',1.5,'cor', 1], out
     
     xloc_py, yloc_py, xloc_en, yloc_en=field(tini,tfin, ymin, ymax, \
                                 prod_spec, prod_coef, rea_spec, rea_coef)
-    
+    dpi=80
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ticksize=latex.get_tsize()
+       
     print("\n")
     fig=plt.figure()
     ax=fig.add_subplot(111)
-    ax.title.set_text("Reaction "+ rea_string + " <--> " + prod_string + "\n" )
+    if title:
+       if latex.flag:
+          ax.title.set_text("Reaction "+ rea_string + '  $\leftrightarrow$  ' + prod_string + "\n" ) 
+       else:
+          ax.title.set_text("Reaction "+ rea_string + " <--> " + prod_string + "\n" )
     ax.text(xloc_en, yloc_en, rea_string)
     ax.text(xloc_py,yloc_py, prod_string)
     ax.plot(t_list,p_list,"k-")
@@ -387,11 +448,19 @@ def equilib(tini,tfin,npoint,pini=1,prod=['py',1], rea=['ens',1.5,'cor', 1], out
     ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
     ax.xaxis.set_major_locator(plt.MaxNLocator(8))
     ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%.1f'))
-    ax.set_xlabel("Temperature (K)")
-    ax.set_ylabel("Pressure (GPa)")
-    plt.savefig(fname=path+'/'+"react",dpi=600)
+    if latex.flag:
+       ax.set_xlabel("Temperature (K)", fontsize=fontsize)
+       ax.set_ylabel("Pressure (GPa)", fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+    else:
+        ax.set_xlabel("Temperature (K)")
+        ax.set_ylabel("Pressure (GPa)") 
+        
+    if save != '':     
+       plt.savefig(fname=path+'/'+ save,dpi=dpi, bbox_inches='tight')
     plt.show()
-    
+    latex.off()
     clap=np.polyfit(t_list,p_list,1)
     cl_s=clap[0]*1.e4
     print("\nAverage Clapeyron Slope (from Delta S/Delta V): %6.2f bar/K" \
