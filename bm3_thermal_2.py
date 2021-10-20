@@ -4681,10 +4681,10 @@ def alpha_dir_from_dpdt(tt, pp, prt=False):
     bulk_modulus_p function (with noeos=True)
     
     Arg:
-        tt: temperature (K)
-        pp: pressure (GPa)
-        prt: is True, alpha, K and V are printed; otherwise unformatted values
-             are returned (default False)
+       tt: temperature (K)
+       pp: pressure (GPa)
+       prt: is True, alpha, K and V are printed; otherwise unformatted values
+            are returned (default False)
     """
     bulk, vol=bulk_modulus_p(tt, pp, noeos=True, prt=False)
 
