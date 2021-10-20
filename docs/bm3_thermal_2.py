@@ -644,6 +644,7 @@ class lo_class():
 class anh_class():
     def __init__(self):
         self.flag=False
+        self.disp_off=0
     def off(self):
         self.flag=False
         exclude.restore()
@@ -985,6 +986,10 @@ class disp_class():
         self.free_disp=True
     def on(self):
         self.flag=True
+        if anharm.disp_off > 0:
+           anharm.mode=np.copy(anharm.mode_orig)
+           anharm.brill=np.copy(anharm.brill_orig)
+           anharm.nmode=anharm.nmode_orig
         print("Dispersion correction activated")
         if kieffer.flag:
            kieffer.flag=False
@@ -992,6 +997,30 @@ class disp_class():
     def off(self):
         self.flag=False
         print("Dispersion correction off")
+        if anharm.flag:             
+           mode_a=np.array([])
+           mode_b=np.array([])
+           for ia, ib in zip(anharm.mode, anharm.brill):
+               if ib == 1:
+                  print("\nWarning: the anharmonic mode n. %2i has Brillouin flag" % ia)
+                  print("equal to 1; it should not be considered if the dispersion")
+                  print("correction is deactivated.\n")
+                  anharm.disp_off=anharm.disp_off+1
+               else:
+                  mode_a=np.append(mode_a, ia)
+                  mode_b=np.append(mode_b, ib)
+                  
+           if anharm.disp_off == 1:     
+              anharm.nmode_orig=anharm.nmode
+              anharm.mode_orig=np.copy(anharm.mode)
+              anharm.brill_orig=np.copy(anharm.brill)
+              
+           anharm.nmode=mode_a.size
+           anharm.mode=np.copy(mode_a)
+           anharm.brill=np.copy(mode_b)
+              
+           print("List of anharmonic modes considered: %s" % anharm.mode)
+                  
     def eos_on(self):
         if self.flag :
            if not self.error_flag:
@@ -2676,9 +2705,7 @@ def volume_from_F_serie(tmin, tmax, npoints, fact_plot=10, debug=False, expansio
                 (default 4)
         fit_alpha: thermal expansion is fitted to a power serie (default False)
         export: list of computed volume is exported (default False)
-        export_alpha: thermal expansion coefficients of the power serie
-                      are exported (default False)
-        export_alpha_fit: coefficients of the power serie fitting the alpha's
+        export_alpha_fit: coefficients of the power series fitting the alpha's
                           are exported
                       
     Note:
@@ -3846,8 +3873,7 @@ def g_vt_dir(tt,pp,**kwargs):
     
     
     return gtv-gref  
-
-
+    
 def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
     """
     Entropy and specific heat at constant volume 
@@ -3935,8 +3961,59 @@ def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
     else:
         return entropy, cv 
 
-
-def entropy_p(tt,pp,plot=False,prt=True,**kwargs):
+def entropy_dir_v(tt, vv, prt=False):
+    """
+    Computation of the entropy at a given volume by means of the free_fit_vt
+    function. The method is EoS free and automatically includes contributions
+    from optic modes, off-center modes and anharmonic modes. 
+    
+    Args:
+        tt: temperature (K)
+        vv: cell volume (A^3)
+        prt: detailed output
+        
+    Note:
+        In case phonon dispersion is included, the disp.thermo_vt mode
+        must be activated. The function checks and, in case, activates such
+        mode.     
+    """
+    if disp.flag:
+       if not disp.thermo_vt_flag:
+          print("Warning: disp.thermo_vt activation")
+          disp.thermo_vt_on()
+       
+    nump=delta_ctrl.get_nump()
+    degree=delta_ctrl.get_degree()
+    if delta_ctrl.adaptive:
+       delta=delta_ctrl.get_delta(tt)
+    else:
+       delta=delta_ctrl.get_delta()
+       
+    min_t=tt-delta/2.
+    max_t=tt+delta/2.
+    if min_t < 0.1:
+       min_t=0.1
+        
+    free_f=np.array([])   
+    t_range=np.linspace(min_t,max_t,nump)
+    for it in t_range:
+        ifree=free_fit_vt(it,vv)
+        free_f=np.append(free_f, ifree)
+           
+    free_fit=np.polyfit(t_range, free_f, degree)
+    free_der1=np.polyder(free_fit,1)
+    free_der2=np.polyder(free_fit,2)
+    entropy=-1*np.polyval(free_der1,tt)*conv*avo/zu
+    cv=-1*np.polyval(free_der2,tt)*tt*conv*avo/zu
+    
+    if prt:
+        print("\nEntropy: %7.2f J/mol K" % entropy)
+        print("Specific heat (at constant volume): %7.2f J/mol K" % cv)
+        return None
+    else:
+        return entropy, cv
+         
+def entropy_p(tt,pp,plot=False,prt=True, dir=False, **kwargs):
     """
     Entropy and specific heat at constant volume at selected temperature
     and pressure
@@ -3967,10 +4044,18 @@ def entropy_p(tt,pp,plot=False,prt=True,**kwargs):
           
     if fixpar:      
        vol=new_volume(tt,pp,fix=fix_value)
-       ent_v=entropy_v(tt,vol,plot,prt,fix=fix_value)
+       if dir:
+          vol=volume_dir(tt,pp)
+          ent_v=entropy_dir_v(tt, vol, prt)
+       else:          
+          ent_v=entropy_v(tt,vol,plot,prt,fix=fix_value)
     else:
        vol=new_volume(tt,pp)
-       ent_v=entropy_v(tt,vol,plot,prt)
+       if dir:
+          vol=volume_dir(tt,pp)
+          ent_v=entropy_dir_v(tt, vol, prt)
+       else:
+          ent_v=entropy_v(tt,vol,plot,prt)
     if prt:
        print("Pressure: %5.2f GPa; Volume %8.4f A^3" % (pp, vol))
        return None
@@ -4585,6 +4670,180 @@ def alpha_dir_fun(tt,*coef):
         alpha=alpha+coef[jc]*(tt**power_a[jc])
         jc=jc+1
     return alpha
+
+def alpha_dir_from_dpdt(tt, pp, prt=False):
+    """
+    Computes thermal expansion, at any temperature and pressure, from the 
+    K*alpha product, by using 'dir' functions only (no equation of state 
+    involved at any step). In particular, the required (dP/dT)_V derivative 
+    is calculated from pressures obtained by the pressure_dir function; the 
+    volume and the bulk modulus at T, P is obtained by means of the 
+    bulk_modulus_p function (with noeos=True)
+    
+    Arg:
+        tt: temperature (K)
+        pp: pressure (GPa)
+        prt: is True, alpha, K and V are printed; otherwise unformatted values
+             are returned (default False)
+    """
+    bulk, vol=bulk_modulus_p(tt, pp, noeos=True, prt=False)
+
+    delta=delta_ctrl.get_delta()
+    nump=delta_ctrl.get_nump()
+    degree=delta_ctrl.get_degree()
+    
+    delta=delta/2.
+
+    t_list=np.linspace(tt-delta, tt+delta, nump)
+    pressure_list=np.array([])
+    
+    for it in t_list:
+        ip=pressure_dir(it, vol)
+        pressure_list=np.append(pressure_list, ip)
+        
+    fit=np.polyfit(t_list, pressure_list, degree)
+    fitder=np.polyder(fit,1)
+    k_alpha=np.polyval(fitder, tt)
+ 
+    alpha=k_alpha/bulk    
+    
+    if prt:
+        print("Thermal expansion: %6.2e (K^-1)" % alpha)
+        print("Bulk modulus:      %6.2f (GPa)  " % bulk)
+        print("Volume:            %8.4f (A^3)  " % vol)
+    else:    
+        return alpha, bulk, vol
+    
+def alpha_dir_from_dpdt_serie(tmin, tmax, nt=12, pp=0, fit=False, phase='', 
+                              save=False, title=True, tex=False):
+    
+    """
+    Thermal expansion in a T-range. The function makes use of the 
+    alpha_dir_from_dpdt function.
+    
+    Args:
+        tmin, tmax: minimum and maximum temperature (in K) 
+        nt:   number of points in the T-range (default 12)
+        pp:   pressure (GPa)
+        fit: if True, a power series fit is performed
+        phase: if not equal to '', and fit is True, the coefficients
+               of the power series fit are uploaded in the internal database
+               (default '')
+        save: if True, a figure is saved in a file (default False)
+        tex: if True, latex format is used for the figure (default False)
+        title: if False, the title printing is suppressed (default True)
+               
+    Note:
+        If a phase is specified and fit is True, use the export function to 
+        upload the parameters of the power series in the database file
+        
+    Example:
+        >>> alpha_dir_from_dpdt_serie(100, 500, fit=True, phase='py')
+        >>> export('py')
+    """
+    t_list=np.linspace(tmin, tmax, nt)
+    alpha_list=np.array([])
+
+    for it in t_list:
+        ia,_,_=alpha_dir_from_dpdt(it, pp, prt=False)
+        alpha_list=np.append(alpha_list, ia)
+        
+    if fit:
+       if flag_alpha==False:
+          print("\nWarning: no polynomium defined for fitting alpha's")
+          print("Use ALPHA keyword in input file")
+          return None
+       
+       coef_ini=np.ones(lpow_a)
+       alpha_fit, alpha_cov=curve_fit(alpha_dir_fun,t_list,alpha_list,p0=coef_ini)    
+        
+    if fit:
+       t_plot=np.linspace(tmin,tmax,nt*4)
+       alpha_fit_plot=alpha_dir_fun(t_plot,*alpha_fit)
+    
+    dpi=80
+    ext='png'
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ext=latex.get_ext()
+       ticksize=latex.get_tsize()
+       
+    plt.figure()
+    tit_text="Thermal expansion at pressure "+str(pp)+" GPa"
+    plt.plot(t_list, alpha_list, "k*", label="Actual values")
+    if fit:
+        plt.plot(t_plot, alpha_fit_plot, "k-", label="Power series fit")
+    
+    if latex.flag:
+       plt.xlabel("T (K)", fontsize=fontsize)
+       plt.ylabel(r'$\alpha$ (K$^{-1}$)', fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+       if fit:
+          plt.legend(frameon=False, prop={'size': fontsize})
+       if title:
+          plt.suptitle(tit_text, fontsize=fontsize)         
+    else:
+       plt.xlabel("T (K)")
+       plt.ylabel("Alpha (K^-1)") 
+       if fit:
+           plt.legend(frameon=False)
+       if title:
+           plt.title(tit_text)
+    
+    if save:
+       name=path+'/'+'alpha_from_dpdt.'+ext
+       plt.savefig(name, dpi=dpi, bbox_inches='tight')
+    plt.show()
+    latex.off()
+    
+    if fit and (phase != ''):
+       print("")
+       eval(phase).load_alpha(alpha_fit, power_a)
+       eval(phase).info()
+       
+
+def cp_dir(tt,pp, prt=False):
+    """
+    Computes the specific heat at constant pressure by using 'dir' functions.
+    In particular, at T and P, the equilibrium volume, the entropy, the specific
+    heat at constant volume and the thermal expansion are calculated by respectively
+    using the volume_dir, the entropy_dir_v and the alpha_dir_from_dpdt functions;
+    bulk modulus is evaluated by means of the bulk_modulus_p function with the 
+    option noeos set to True (the volume and bulk modulus values are from the 
+    alpha_dir_from_dpdt function output, too).
+    
+    Args:
+        tt: temperature (K)
+        pp: pressure (GPa)
+        prt: if True a detailed output is printed
+    """
+    if disp.flag:
+       if not disp.thermo_vt_flag:
+          disp.thermo_vt_on()
+          
+    alpha, k, vol=alpha_dir_from_dpdt(tt,pp, prt=False)      
+    ent,cv=entropy_dir_v(tt, vol)
+    
+    
+    cp=cv+vol*(avo*1e-30/zu)*tt*k*1e9*alpha**2
+    
+    if prt:
+       print("Cp: %6.2f,    Cv: %6.2f,   S %6.2f (J/K mol)" % (cp, cv, ent))
+       print("K: %6.2f (GPa),  Alpha: %6.2e (K^-1),  Volume: %8.4f (A^3)" % (k, alpha, vol))
+    else:
+       return cp 
+   
+def cp_dir_serie(tmin, tmax, nt, pp=0):
+    
+    t_list=np.linspace(tmin, tmax, nt)
+    cp_list=np.array([cp_dir(it, pp) for it in t_list])
+  
+    plt.figure()
+    plt.plot(t_list, cp_list, "k-")
+    plt.show()
   
 def cp(tt,pp,plot=False,prt=False,dul=False,**kwargs):
     """
@@ -5903,6 +6162,109 @@ def check_poly(ifr, save=False, title=True, tex=False):
         print("Figure saved as %s" % filename)
     plt.show()
     latex.off()
+    
+def frequency_p_range(ifr, pmin, pmax, npoint, dir=False, temp=298.15, degree=1, \
+                      title=True, tex=False, save=False):
+    """
+    Frequency of a mode computed as a function of pressure in a given range,
+    at a fixed temperature.
+    
+    Args:
+        ifr: mode number
+        pmin, pmax, npoint: minimum and maximum pressure in the range (GPa), and
+                            number of points
+        temp: temperature (default 298.15 K)
+        dir: if True, volume is computed through the volume_dir function;
+             otherwise, the EoS-based new_volume function is used (default False)
+        degree: degree of the fitting polynomial (default 1)
+        title: if False, title of the plot is suppressed (default True)
+        tex: if True, Latex output is used for the plot (default False)
+        save: if True, the plot is saved (default False)
+        
+    Note:
+        A fit of the frequencies vs volume (either poly or spline) is required.
+        
+    Note: 
+        if save is True and tex is True, the fontsize, the resolution and 
+        extension of the saved file are controlled by the parameters of the 
+        latex class. 
+    """    
+    
+    if not (flag_poly.flag or flag_spline.flag):
+       print("\n*** Warning No fit of frequency was set\n")
+       return 
+        
+    npp=np.linspace(pmin, pmax, npoint)
+    
+    if dir:
+        freq_p=np.array([])
+        for ip in npp:
+            vol=volume_dir(temp, ip)
+            if flag_poly.flag:
+                ifreq=freq_v_fun(ifr, vol)
+                
+            elif flag_spline.flag:
+                ifreq=freq_spline_v(ifr, vol)          
+            freq_p=np.append(freq_p, ifreq)    
+    else:
+        if flag_poly.flag:
+           freq_p=np.array([freq_poly_p(ifr, temp, ip, plot=False, prt=False)[0] for ip in npp])
+        elif flag_spline.flag:
+           freq_p=np.array([freq_spline_p(ifr, temp, ip, plot=False, prt=False)[0] for ip in npp])
+                  
+    fit=np.polyfit(npp, freq_p, degree)
+    
+    p_plot=np.linspace(pmin, pmax, npoint*10)
+    f_plot=np.polyval(fit, p_plot)
+    
+    fit_rev=np.flip(fit)
+    
+    fit_str='fit: freq = ' + str(fit_rev[0].round(3)) + ' + '
+     
+    for ic in np.arange(1, degree+1):
+        if ic == degree:
+           fit_str=fit_str + str(fit_rev[ic].round(3)) + ' P^' + str(ic)
+        else:
+           fit_str=fit_str + str(fit_rev[ic].round(3)) + ' P^' + str(ic) + ' + '
+
+    dpi=80
+    ext='png'
+    if tex: 
+        latex.on()
+        dpi=latex.get_dpi()
+        fontsize=latex.get_fontsize()
+        ext=latex.get_ext()
+        ticksize=latex.get_tsize()
+        
+    title="Mode number " + str(ifr)
+    label="Fit (degree: "+str(degree)+")"
+    plt.figure()    
+    plt.plot(npp, freq_p, "k*", label="Actual values")
+    plt.plot(p_plot, f_plot, "k-", label=label)
+    if latex.flag:
+       plt.ylabel("Freq (cm$^{-1}$)", fontsize=fontsize)
+       plt.xlabel("P (GPa)", fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+       if title:
+          plt.suptitle(title, fontsize=fontsize)
+       plt.legend(frameon=False, prop={'size': fontsize})
+    else:
+       plt.ylabel("Freq (cm^-1)")
+       plt.xlabel("P (GPa)")
+       if title:
+          plt.title(title)
+       plt.legend(frameon=False)
+            
+    if save:
+       name=path+'/'+'mode_'+str(ifr)+'_vs_P.'+ext
+       plt.savefig(name, dpi=dpi, bbox_inches='tight')
+    
+    plt.show()
+    latex.off()
+    
+    print(fit_str)
+    
     
 def check_spline_total():
     """
