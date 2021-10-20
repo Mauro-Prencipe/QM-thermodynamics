@@ -64,14 +64,14 @@ class mineral:
         self.name=name
         self.nick=nick
         self.eos='m'
-        self.cp=None
-        self.al=None
-        self.k0=None
-        self.kp=None
-        self.dkt=None
-        self.v0=None
-        self.g0=None
-        self.s0=None
+        self.cp=[[0, 0]]
+        self.al=[[0, 0]]
+        self.k0=0.
+        self.kp=0.
+        self.dkt=0.
+        self.v0=0.
+        self.g0=0.
+        self.s0=0.
         
     def info(self):
         print("Mineral: %s\n" % self.name)
