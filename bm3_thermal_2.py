@@ -4680,7 +4680,7 @@ def alpha_dir_from_dpdt(tt, pp, prt=False):
     volume and the bulk modulus at T, P is obtained by means of the 
     bulk_modulus_p function (with noeos=True)
     
-    Arg:
+    Args:
        tt: temperature (K)
        pp: pressure (GPa)
        prt: is True, alpha, K and V are printed; otherwise unformatted values
