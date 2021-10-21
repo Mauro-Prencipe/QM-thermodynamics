@@ -1462,6 +1462,131 @@ class volume_delta_class():
       def off(self):
            self.flag=False
         
+class thermal_expansion_class():
+      """
+      Interface for the computation of thermal expansion by different algorithms.
+      The method 'compute' performs the calculation by calling different functions
+      according to the 'method' keyword. Similarly, the method 'compute_serie' 
+      performs the calculation of alpha as a function of temperature. 
+    
+      Several default parameters for the calculation are provided, which can 
+      be set by the method 'set'.
+    
+      The algortithms which are currently implemented can be listed by the method 
+      'info'
+      """
+    
+      def __init__(self):
+          self.method='k_alpha_dir'
+          self.nt=12
+          self.fix=0
+          self.fit=False
+          self.tex=False
+          self.save=False
+          self.phase=''
+          self.title='True'
+          
+      def set(self, method='k_alpha_dir', nt=12, fit=False, tex=False, save=False,\
+              phase='', title=True, fix=0.):
+          self.method=method
+          self.nt=nt
+          self.fix=fix
+          self.fit=fit
+          self.tex=tex
+          self.save=save
+          self.phase=phase
+          self.title=title 
+          
+      def info(self):
+          print("\nMethods currently implemented\n")
+          print("k_alpha_dir: computes alpha from the product K*alpha, through the")
+          print("             derivative of P with respect to T, at constant V")
+          print("             At any T and P, , K and P are directly computed from")
+          print("             the Helmholtz free energy function derivatives. No EoS")
+          print("             is involved at any step;")
+          print("k_alpha_eos: same as k_alpha_dir, but pressures and bulk moduli")
+          print("             are computed from an EoS;")
+          print("alpha_dir:   the computation is perfomed through the derivative")
+          print("             of the unit cell volume with respect to V; volumes are")
+          print("             calculated without reference to any EoS, by the function")
+          print("             volume_dir.")
+          
+      def compute(self, tt, pp, method='default', fix=0, prt=False):
+          if method=='default':
+             method=self.method
+             
+          if fix==0:
+             fix=self.fix
+             
+          if method=='k_alpha_dir':
+             if prt:
+                alpha_dir_from_dpdt(tt, pp, prt)
+             else:
+                alpha,k,vol=alpha_dir_from_dpdt(tt, pp, prt) 
+                return alpha
+          elif method=='k_alpha_eos':
+               exit=False
+               if not prt:
+                  exit=True
+                  alpha=thermal_exp_p(tt, pp, False, exit, fix=fix)
+                  return alpha[0]
+               else:
+                  thermal_exp_p(tt, pp, plot=False, ex=exit, fix=fix)
+          elif method=='alpha_dir':
+               alpha=alpha_dir(tt,pp)
+               if prt:
+                  print("Thermal expansion: %6.2e K^-1" % alpha)
+               else:
+                  return alpha
+          else: 
+             msg="*** Warning: method "+method+" not implemented"
+             print(msg)
+             
+      def compute_serie(self, tmin, tmax, pressure=0, nt=0, fit='default', tex='default',\
+                        title='default', save='default', phase='default', method='default',\
+                        prt=True):
+          if nt==0:
+             nt=self.nt
+             
+          if fit=='default':
+             fit=self.fit
+             
+          if tex=='default':
+             tex=self.tex
+             
+          if title=='default':
+             title=self.title
+             
+          if save=='default':
+             save=self.save
+          
+          if phase=='default':
+             phase=self.phase
+             
+          if method=='default':
+             method=self.method
+             
+          if method=='k_alpha_dir':   
+             alpha_dir_from_dpdt_serie(tmin, tmax,  nt, pressure, fit, phase, save,\
+                                       title, tex)
+          elif method=='alpha_dir':
+               if not fit:
+                  alpha_dir_serie(tmin, tmax, nt, pressure, fit, prt=prt)
+               else:
+                  alpha_fit=alpha_dir_serie(tmin, tmax, nt, pressure, fit, prt=prt)
+                  
+                  if phase != '':
+                     print("")
+                     eval(phase).load_alpha(alpha_fit, power_a)
+                     eval(phase).info()
+                     print("")
+                  else:          
+                     return alpha_fit
+          else:
+             msg="*** Warning: method "+method+" not implemented"
+             print(msg) 
+              
+         
 
 # reads in data file. It requires a pathname to the folder
 # containing data
@@ -7902,7 +8027,7 @@ def main():
     global flag_view_input, flag_dir, f_fix, vol_opt, alpha_opt, info, lo, gamma_fit
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
-    global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex
+    global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex, thermal_expansion
     
     ctime=datetime.datetime.now()
     version="2.4.3 - 03/09/2021"
@@ -7951,6 +8076,7 @@ def main():
     volume_F_ctrl=volume_F_control_class()
     delta_ctrl=delta_class()
     latex=latex_class()
+    thermal_expansion=thermal_expansion_class()
       
     vol_opt.on()
     alpha_opt.on()    
