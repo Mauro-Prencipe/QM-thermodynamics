@@ -7,3 +7,4 @@ src
    bm3_thermal_2
    mineral_data
    anharm
+   plot
