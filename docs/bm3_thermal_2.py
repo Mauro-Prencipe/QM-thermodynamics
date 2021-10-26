@@ -30,6 +30,7 @@ from scipy.optimize import curve_fit, fmin, minimize_scalar, minimize
 from scipy.interpolate import UnivariateSpline, Rbf
 from scipy import integrate
 
+from plot import plot_class
 from mineral_data import mineral, load_database, equilib, reaction,\
      pressure_react, export, field, import_database, name_list
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
@@ -1474,6 +1475,16 @@ class thermal_expansion_class():
     
       The algortithms which are currently implemented can be listed by the method 
       'info'
+      
+      The 'compute_serie' method perform the calculation of the thermal 
+      expansion in a given T-range and, optionally, performs a power
+      series fit on the computed values. Data from the fit can optionally be 
+      loaded in the internal database if a phase name is provided.
+      
+      Note:
+          For the method 'k_alpha_eos', this class uses a specialized
+          plotting function from the plot.py module, whose parameters are
+          controlled by the plot.set_param method. 
       """
     
       def __init__(self):
@@ -1484,7 +1495,7 @@ class thermal_expansion_class():
           self.tex=False
           self.save=False
           self.phase=''
-          self.title='True'
+          self.title=True
           
       def set(self, method='k_alpha_dir', nt=12, fit=False, tex=False, save=False,\
               phase='', title=True, fix=0.):
@@ -1512,6 +1523,18 @@ class thermal_expansion_class():
           print("             volume_dir.")
           
       def compute(self, tt, pp, method='default', fix=0, prt=False):
+          """
+          Thermal expansion at a specific temperature and pressure
+          
+          Args:
+              tt: temperature (K)
+              pp: pressure    (GPa)
+              method: 3 methods are currently implemented ('k_alpha_dir',
+                      'k_alpha_eos' and 'alpha_dir'); default 'k_alpha_dir'
+              fix: relevant for method 'k_alpha_eos' (default 0., Kp not fixed)
+              prt: relevant for method 'k_alpha_eos'; it controls printout 
+                   (default False)
+          """
           if method=='default':
              method=self.method
              
@@ -1544,7 +1567,38 @@ class thermal_expansion_class():
              
       def compute_serie(self, tmin, tmax, pressure=0, nt=0, fit='default', tex='default',\
                         title='default', save='default', phase='default', method='default',\
-                        prt=True):
+                        prt=True, fix=0):
+          """
+          Thermal expansion in a T-range
+          
+          Args:
+              tmin, tmax: minimum and maximum temperature in the range
+              pressure: pressure (GPa); default 0
+              nt: number of points in the T-range; if nt=0, the default is chosen (12)
+              method: one of the three methods currently implemented 
+              fit: if True, a power series fit is performed
+              phase: if fit is True and a phase name is specified (label), the data
+                     from the power series fit are loaded in the internal database
+              fix: relevant for the method 'k_alpha_eos'; if fix is not 0., 
+                   Kp is fixed at the specified value
+              title: if True, a title of the plot is provided
+              tex: if tex is True, laTeX formatting is provided
+              prt: relevant for the method 'k_alpha_eos'
+              save: if True, the plot is saved in a file
+              
+          Note:
+              if save is True and method is 'k_alpha_eos', the name of the file
+              where the plot is saved is controlled by the plot.name and plot.ext variables.
+              The file resolution is controlled by the plot.dpi variable.
+              The appropriate parameters can be set by the set_param method
+              of the plot instance of the plot_class class (in the plot.py module)
+              
+          Example:
+              >>> plot.set_param(dpi=200, name='alpha_k_eos_serie')
+              >>> thermal_expansion.compute_serie(100, 500,\
+                                            method='k_alpha_eos', save=True)
+          """
+          
           if nt==0:
              nt=self.nt
              
@@ -1566,6 +1620,9 @@ class thermal_expansion_class():
           if method=='default':
              method=self.method
              
+          t_list=np.linspace(tmin, tmax, nt)
+          t_plot=np.linspace(tmin, tmax, nt*10)
+             
           if method=='k_alpha_dir':   
              alpha_dir_from_dpdt_serie(tmin, tmax,  nt, pressure, fit, phase, save,\
                                        title, tex)
@@ -1582,6 +1639,60 @@ class thermal_expansion_class():
                      print("")
                   else:          
                      return alpha_fit
+                 
+          elif method=='k_alpha_eos':
+               alpha_list=np.array([])
+               for it in t_list:
+                   ia=self.compute(it, pressure, method='k_alpha_eos', fix=fix)
+                   alpha_list=np.append(alpha_list, ia)
+                   
+               if fit:
+                  if flag_alpha==False:
+                     print("\nWarning: no polynomium defined for fitting alpha's")
+                     print("Use ALPHA keyword in input file")
+                     return None
+                      
+                  coef_ini=np.ones(lpow_a)
+                  alpha_fit, alpha_cov=curve_fit(alpha_dir_fun,t_list,alpha_list,p0=coef_ini)    
+                       
+                  if fit:
+                     alpha_fit_plot=alpha_dir_fun(t_plot,*alpha_fit)
+                   
+              
+               tit=''
+               if tex and title:
+                  tit=r'Thermal expansion (method k\_alpha\_eos)'
+               elif title:
+                  tit='Thermal expansion (method k_alpha_eos)'
+                  
+               if fit:
+                  x=[t_list, t_plot]
+                  y=[alpha_list, alpha_fit_plot]
+                  style=['k*', 'k-']
+                  lab=['Actual values', 'Power series fit']
+                  if tex:                  
+                       plot.multi(x,y,style, lab, xlab='Temperature (K)',\
+                                  ylab=r'$\alpha$ (K$^{-1}$)', title=tit, tex=True, save=save)
+                  else:
+                       plot.multi(x,y,style, lab, xlab='Temperature (K)',\
+                                   title=tit, ylab='Alpha (K$^{-1}$)', save=save)
+               else:                      
+                  if tex:                  
+                       plot.simple(t_list, alpha_list, xlab='Temperature (K)',\
+                                  ylab=r'$\alpha$ (K$^{-1}$)', title=tit, tex=True, save=save)
+                  else:
+                       plot.simple(t_list, alpha_list, xlab='Temperature (K)',\
+                                   title=tit, ylab='Alpha (K$^{-1}$)', save=save) 
+               
+               if fit: 
+                  if phase != '':
+                     print("")
+                     eval(phase).load_alpha(alpha_fit, power_a)
+                     eval(phase).info()
+                     print("")
+                  else:          
+                     return alpha_fit 
+           
           else:
              msg="*** Warning: method "+method+" not implemented"
              print(msg) 
@@ -8028,6 +8139,7 @@ def main():
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
     global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex, thermal_expansion
+    global plot
     
     ctime=datetime.datetime.now()
     version="2.4.3 - 03/09/2021"
@@ -8077,6 +8189,7 @@ def main():
     delta_ctrl=delta_class()
     latex=latex_class()
     thermal_expansion=thermal_expansion_class()
+    plot=plot_class()
       
     vol_opt.on()
     alpha_opt.on()    

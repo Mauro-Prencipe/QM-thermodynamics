@@ -1,6 +1,7 @@
 import os
 import numpy as np 
 import scipy
+import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -8,6 +9,11 @@ import pandas as pd
 from scipy import integrate
 
 path='output'
+
+if os.path.isfile('path_file.dat'):
+   path_file=open('path_file.dat', 'r')
+   path=path_file.readline().rstrip()
+   path_file.close()
 
 class latex_class():
     """
