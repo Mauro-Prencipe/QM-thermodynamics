@@ -7,7 +7,7 @@ Updates
 
 `03/09/2021 (Thermal expansion I)`_
 
-`27/10/2021 (Thermal expansion (II)`_
+`27/10/2021 (Thermal expansion II)`_
 
 .. _03/03/2021 (Extrapolation of Cv at the Debye limit): _static/update.html
 
