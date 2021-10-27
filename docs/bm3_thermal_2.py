@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.4.3 03/09/2021
+# Version 2.5.0 27/10/2021
 #
 
 # Comment the following three lines to produce the documentation 
@@ -1512,7 +1512,7 @@ class thermal_expansion_class():
           print("\nMethods currently implemented\n")
           print("k_alpha_dir: computes alpha from the product K*alpha, through the")
           print("             derivative of P with respect to T, at constant V")
-          print("             At any T and P, , K and P are directly computed from")
+          print("             At any T and P, K and P are directly computed from")
           print("             the Helmholtz free energy function derivatives. No EoS")
           print("             is involved at any step;")
           print("k_alpha_eos: same as k_alpha_dir, but pressures and bulk moduli")
@@ -1622,9 +1622,14 @@ class thermal_expansion_class():
           t_list=np.linspace(tmin, tmax, nt)
           t_plot=np.linspace(tmin, tmax, nt*10)
              
-          if method=='k_alpha_dir':   
-             alpha_dir_from_dpdt_serie(tmin, tmax,  nt, pressure, fit, phase, save,\
-                                       title, tex)
+          if method=='k_alpha_dir': 
+             if fit and phase == '':
+                alpha_fit=alpha_dir_from_dpdt_serie(tmin, tmax,  nt, pressure, fit, phase, save,\
+                                              title, tex)
+                return alpha_fit
+             else:
+                alpha_dir_from_dpdt_serie(tmin, tmax,  nt, pressure, fit, phase, save,\
+                                              title, tex)
           elif method=='alpha_dir':
                if not fit:
                   alpha_dir_serie(tmin, tmax, nt, pressure, fit, prt=prt)
@@ -5038,7 +5043,9 @@ def alpha_dir_from_dpdt_serie(tmin, tmax, nt=12, pp=0, fit=False, phase='',
        print("")
        eval(phase).load_alpha(alpha_fit, power_a)
        eval(phase).info()
-       
+    elif fit:
+        return alpha_fit
+      
 
 def cp_dir(tt,pp, prt=False):
     """
@@ -8141,7 +8148,7 @@ def main():
     global plot
     
     ctime=datetime.datetime.now()
-    version="2.4.3 - 03/09/2021"
+    version="2.5.0 - 27/10/2021"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
