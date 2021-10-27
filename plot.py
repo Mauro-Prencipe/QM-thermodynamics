@@ -187,7 +187,7 @@ class plot_class():
         plt.ylabel(ylab, fontsize=fsize)
         plt.xticks(fontsize=tsize)
         plt.yticks(fontsize=tsize)
-        plt.legend(frameon=False)
+        plt.legend(frameon=False, prop={'size': fsize})
         
         if title != '':
            plt.suptitle(title, fontsize=fsize)
