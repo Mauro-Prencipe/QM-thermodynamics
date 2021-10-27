@@ -1595,8 +1595,7 @@ class thermal_expansion_class():
               
           Example:
               >>> plot.set_param(dpi=200, name='alpha_k_eos_serie')
-              >>> thermal_expansion.compute_serie(100, 500,\
-                                            method='k_alpha_eos', save=True)
+              >>> thermal_expansion.compute_serie(100, 500, method='k_alpha_eos', save=True)
           """
           
           if nt==0:
@@ -8189,7 +8188,6 @@ def main():
     delta_ctrl=delta_class()
     latex=latex_class()
     thermal_expansion=thermal_expansion_class()
-    plot=plot_class()
       
     vol_opt.on()
     alpha_opt.on()    
@@ -8221,7 +8219,8 @@ def main():
                  l0=input_str[0]
                  if l0 !='#':
                     instr=np.append(instr,input_str)
-                
+                    
+        plot=plot_class(path)        
         quick_start(path)
     
         instr=instr[:-1]
