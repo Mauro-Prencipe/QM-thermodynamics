@@ -14003,7 +14003,7 @@ a.anchor-link {
 
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain">
 <pre>This is BMx-QM program, version 2.5.0 - 27/10/2021 
-Run time:  2021-10-27 17:40:18.982032
+Run time:  2021-10-28 17:35:22.856883
 
 File quick_start.txt found in the master folder
 Input files in &#39;pyrope&#39; folder
@@ -14598,41 +14598,18 @@ Alpha coefficients and powers:
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>Note that, in this case, all of the thermodynamic parameters for pyrope are read from an external database and only the thermal expansion data are upgraded to the new computed values.</p>
-<p>By writing a few lines of python code, it is for instance possible to compare the thermal expansion computed through two different algorithms like <em>k_alpha_dir</em> and <em>k_alpha_eos</em>. The following function computes the coefficients of the power series from the two methods and makes the plot by using the <em>multi</em> method of the <em>plot_class</em>:</p>
+<p>By writing a few lines of python code, it is for instance possible to compare the thermal expansion computed through two different algorithms like <em>k_alpha_dir</em> and <em>k_alpha_eos</em>. The following lines computes the coefficients of the power series from the two methods:</p>
 
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-InputArea jp-Cell-inputArea">
 <div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[12]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
      <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">compare_expansion</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">):</span>
-    <span class="n">alpha_fit1</span><span class="o">=</span><span class="n">thermal_expansion</span><span class="o">.</span><span class="n">compute_serie</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="n">fit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">alpha_fit2</span><span class="o">=</span><span class="n">thermal_expansion</span><span class="o">.</span><span class="n">compute_serie</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;k_alpha_eos&#39;</span><span class="p">,</span><span class="n">fit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">t_list</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
-    <span class="n">alpha_list_1</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">alpha_fun</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="o">*</span><span class="n">alpha_fit1</span><span class="p">)</span> <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="n">t_list</span><span class="p">])</span>
-    <span class="n">alpha_list_2</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">alpha_fun</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="o">*</span><span class="n">alpha_fit2</span><span class="p">)</span> <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="n">t_list</span><span class="p">])</span>
-    <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">t_list</span><span class="p">,</span> <span class="n">t_list</span><span class="p">]</span>
-    <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">alpha_list_1</span><span class="p">,</span> <span class="n">alpha_list_2</span><span class="p">]</span>
-    <span class="n">style</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;k-&#39;</span><span class="p">,</span> <span class="s1">&#39;r--&#39;</span><span class="p">]</span>
-    <span class="n">label</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;k\_alpha\_dir&#39;</span><span class="p">,</span> <span class="s1">&#39;k\_alpha\_eos&#39;</span><span class="p">]</span>
-    <span class="n">plot</span><span class="o">.</span><span class="n">set_param</span><span class="p">(</span><span class="n">fsize</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">tsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
-    <span class="n">plot</span><span class="o">.</span><span class="n">multi</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">style</span><span class="p">,</span><span class="n">label</span><span class="p">,</span> <span class="n">xlab</span><span class="o">=</span><span class="s1">&#39;Temperature (K)&#39;</span><span class="p">,</span> <span class="n">ylab</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;$\alpha$ (K$^{-1}$)&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Thermal expansion&#39;</span><span class="p">,</span> <span class="n">tex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</pre></div>
-
-     </div>
-</div>
-</div>
-</div>
-
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
-<div class="jp-Cell-inputWrapper">
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[13]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-     <div class="CodeMirror cm-s-jupyter">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">compare_expansion</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">450</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">450</span>
+<span class="n">alpha_fit1</span><span class="o">=</span><span class="n">thermal_expansion</span><span class="o">.</span><span class="n">compute_serie</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="n">fit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">alpha_fit2</span><span class="o">=</span><span class="n">thermal_expansion</span><span class="o">.</span><span class="n">compute_serie</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;k_alpha_eos&#39;</span><span class="p">,</span><span class="n">fit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 
      </div>
@@ -14677,6 +14654,62 @@ Alpha coefficients and powers:
 
 </div>
 
+</div>
+
+</div>
+
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>The coefficients of the power series optimized for the two cases are then used to compute $\alpha$ by using the <em>alpha_fun</em> function that accepts a list of temperature (<em>t_list</em>) and the list of coefficients as arguments:</p>
+
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[13]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">t_list</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+<span class="n">alpha_list_1</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">alpha_fun</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="o">*</span><span class="n">alpha_fit1</span><span class="p">)</span> <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="n">t_list</span><span class="p">])</span>
+<span class="n">alpha_list_2</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">alpha_fun</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="o">*</span><span class="n">alpha_fit2</span><span class="p">)</span> <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="n">t_list</span><span class="p">])</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+</div>
+<div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>The two $\alpha$ curves are then plotted together by using the <em>plot.multi</em> method:</p>
+
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[14]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">t_list</span><span class="p">,</span> <span class="n">t_list</span><span class="p">]</span>
+<span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">alpha_list_1</span><span class="p">,</span> <span class="n">alpha_list_2</span><span class="p">]</span>
+<span class="n">style</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;k-&#39;</span><span class="p">,</span> <span class="s1">&#39;r--&#39;</span><span class="p">]</span>
+<span class="n">label</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;k\_alpha\_dir&#39;</span><span class="p">,</span> <span class="s1">&#39;k\_alpha\_eos&#39;</span><span class="p">]</span>
+<span class="n">plot</span><span class="o">.</span><span class="n">set_param</span><span class="p">(</span><span class="n">fsize</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">tsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+<span class="n">plot</span><span class="o">.</span><span class="n">multi</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">style</span><span class="p">,</span><span class="n">label</span><span class="p">,</span> <span class="n">xlab</span><span class="o">=</span><span class="s1">&#39;Temperature (K)&#39;</span><span class="p">,</span> <span class="n">ylab</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;$\alpha$ (K$^{-1}$)&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Thermal expansion&#39;</span><span class="p">,</span> <span class="n">tex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
 <div class="jp-OutputArea-child">
 
     
@@ -14700,13 +14733,131 @@ Alpha coefficients and powers:
 </div>
 <div class="jp-Cell-inputWrapper"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>Note that the first figure is produced by the plotting facilities incorporated in the <em>alpha_dir_from_dpdt_serie</em> function; the second and third figures are produced by the <em>plot.multi</em> method. In particular, the last one is produced by the code:</p>
-
-<pre><code>plot.set_param(fsize=14, tsize=12)
-plot.multi(x,y,style,label, xlab='Temperature (K)', ylab=r'$\alpha$ (K$^{-1}$)', title='Thermal expansion', tex=True)</code></pre>
-<p>of the <em>compare_expansion</em> defined in this notebook.</p>
+<p>Use the <em>help</em> function to get the: documentation concerning the plotting facilities:</p>
 
 </div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[15]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">help</span><span class="p">(</span><span class="n">plot</span><span class="o">.</span><span class="n">multi</span><span class="p">)</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+
+
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain">
+<pre>Help on method multi in module plot:
+
+multi(x, y, sl, lgl, title=&#39;&#39;, xlab=&#39;default&#39;, ylab=&#39;default&#39;, fsize=0, tsize=0, save=False, dpi=0, name=&#39;default&#39;, ext=&#39;default&#39;, tex=&#39;default&#39;) method of plot.plot_class instance
+    Plot multiple curves.
+    
+    Args:
+        x: array of independent variable arrays
+        y: array of dependent variable arrays
+        sl: array of styles (one for each curve)
+        lgl: array of curve labels (for the legend)
+        
+    Note:
+        See the documentation for the &#39;simple&#39; method for information 
+        about the other keyword arguments.
+    
+    Example:
+        &gt;&gt;&gt; x=np.linspace(-2, 2, 24)
+        &gt;&gt;&gt; y1=x**2
+        &gt;&gt;&gt; y2=x**3
+        &gt;&gt;&gt; x=[x,x]
+        &gt;&gt;&gt; y=[y1,y2]
+        &gt;&gt;&gt; style=[&#39;k-&#39;, &#39;r+&#39;]
+        &gt;&gt;&gt; label=[r&#39;Y=X$^2$&#39;, r&#39;Y=X$^3$&#39;]
+        &gt;&gt;&gt; plot.multi(x,y, style, label, tex=True)
+
+</pre>
+</div>
+</div>
+
+</div>
+
+</div>
+
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[16]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">help</span><span class="p">(</span><span class="n">plot</span><span class="o">.</span><span class="n">simple</span><span class="p">)</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+
+
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain">
+<pre>Help on method simple in module plot:
+
+simple(x, y, title=&#39;&#39;, style=&#39;default&#39;, xlab=&#39;default&#39;, ylab=&#39;default&#39;, fsize=0, tsize=0, save=False, dpi=0, name=&#39;default&#39;, ext=&#39;default&#39;, tex=&#39;default&#39;) method of plot.plot_class instance
+    Plots a single (x, y) curve.
+    
+    Args:
+        x: independent variable (array of data)
+        y: dependent variable (array of data)
+        title: plot title (default no title &#39;&#39;)
+        style: style of the plot (default self.style)
+        xlab: X axis label (default self.xlab)
+        ylab: Y axis label (default self.ylab)
+        fsize: label and title size (default self.fsize)
+        tsize: tick size (default self.tsize)
+        save: if True, the plot will be saved on a file (default False)
+        dpi: resolution of the saved file (default self.dpi)
+        name: name of the saved file (default self.name)
+        ext: extension (and format) of the saved file (default self.ext)
+        tex: if True, tex fonts and format are used
+    
+    Note: 
+        The arguments dpi, name and ext are relevant only if save is True
+    
+    Examples:
+        &gt;&gt;&gt; plot.simple(x,y, style=&#39;r-&#39;, xlab=&#39;T (K)&#39;, ylab=&#39;Alpha (K^-1)&#39;, fsize=12)
+        
+        &gt;&gt;&gt; plot.set_param(fsize=12, style=&#39;r-&#39;)
+        &gt;&gt;&gt; plot.simple(x,y, xlab=&#39;T (K)&#39;, ylab=&#39;alpha (K^-1)&#39;)
+
+</pre>
+</div>
+</div>
+
+</div>
+
+</div>
+
 </div>
 </body>
 
