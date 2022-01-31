@@ -1633,7 +1633,7 @@ class direct_class():
                    phase='default'):
           
           '''
-          Make a plot and (optionally) a fit of the specific heat at 
+          Makes a plot and (optionally) a fit of the specific heat at 
           constant pressure in a given temperature range and at a given
           pressure
           
@@ -1668,6 +1668,15 @@ class direct_class():
           tit=''
           if title:
              tit='Specific heat at pressure '+str(pp)+' GPa'
+          
+          if not fit:             
+             style='k*'
+             xlab='Temperature (K)'
+             ylab='Cp (J/mol K)'
+             plot.simple(t_list, cp_list, xlab=xlab, ylab=ylab, title=tit,
+                           tex=tex, save=save, name=name)
+             return     
+         
           if fit:
              if flag_cp==False:
                 print("\nWarning: no polynomium defined for fitting Cp's")
