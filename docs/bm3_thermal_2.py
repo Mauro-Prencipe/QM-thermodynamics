@@ -466,6 +466,20 @@ class kieffer_class():
         self.kief_freq_inp=np.array([f1, f2, f3])
         self.kief_freq=self.kief_freq_inp*csl*h/kb
         free_stack_t(pr.kt_init,pr.kt_fin,pr.kt_points)
+    def rescale(self, fact=1., save=False):
+        k0=self.kief_freq_inp[0]*fact
+        k1=self.kief_freq_inp[1]*fact
+        k2=self.kief_freq_inp[2]*fact
+        
+        k_list=[k0, k1, k2]
+        k_print=list(round(ik,1) for ik in k_list)        
+        print("Kieffer frequencies rescaled to ", k_print)
+        
+        if save:
+           self.kief_freq_inp=np.array([k0, k1, k2])
+           
+        self.kief_freq=np.array([k0, k1, k2])*csl*h/kb
+        free_stack_t(pr.kt_init,pr.kt_fin,pr.kt_points)
     def plot(self):
         plt.figure()
         plt.plot(self.t_range, self.f_list, "k-")
@@ -1462,6 +1476,227 @@ class volume_delta_class():
         
       def off(self):
            self.flag=False
+           
+class direct_class():
+      '''
+      Computes thermodynamic quantities directly as derivative of
+      the Helmholtz function. The computed quantities are: volume, 
+      pressure, entropy, Cv and Cp. 
+      '''
+    
+      def __init__(self):
+          self.nt=12
+          self.fit=False
+          self.save=False
+          self.tex=False
+          self.title=True
+          self.phase=''
+          
+      def set(self, nt=12, fit=False, save=False, tex=False, title=True, phase=''):
+          '''
+          Sets relevant parameters for the class
+          
+          Args:
+              nt: number of temperature points at which specific heath
+                  is computed (default 12; relevant for cp_serie)
+              fit: if True, a fit of the Cp vs T is done (default False;
+                   relevant for cp_serie)
+              save: if True, the plot of Cp vs. T is saved on a file 
+                    (default False; relevant for cp_serie)
+              tex:  if True, Latex font will be used (default False; 
+                    relevant for cp_serie) 
+              title: if True, a plot title will given to the Cp(T) plot
+                     (default True; relevant for cp_serie)
+              phase: if not an empty string, the parameters from
+                     the Cp(T) fit will be assigned to the phase 
+                     and load in the relevant item of the internal 
+                     database (default ''; relevant for cp_serie)
+            '''
+          self.nt=nt
+          self.fit=fit
+          self.save=save
+          self.tex=tex
+          self.title=title
+          self.phase=phase
+            
+      def volume(self,tt,pp=0):
+          '''
+          Returns the volume (A^3) at a given temperature and pressure
+          
+          Args:
+              tt: temperature (in K)
+              pp: pressure (GPa); (default 0)
+          '''
+          return volume_dir(tt,pp)
+      
+      def pressure(self, tt,vv):
+          
+          '''
+          Returns the pressure (GPa) at a given temperature and
+          volume
+          
+          Args:
+              tt: temperature (in K)
+              vv: volume (in A^3)
+          '''
+          
+          return pressure_dir(tt,vv)
+      
+      def dpdt(self, tt, vv):
+          '''
+          Computes the derivative dP/dT at a given temperature and volume
+          
+          Args:
+              tt: temperature (in K)
+              vv: volume (in A^3)
+          '''
+          delta=delta_ctrl.get_delta()
+          nump=delta_ctrl.get_nump()
+          degree=delta_ctrl.get_degree()
+          
+          delta=delta/2.
+
+          t_list=np.linspace(tt-delta, tt+delta, nump)
+          pressure_list=np.array([])
+          
+          for it in t_list:
+              ip=pressure_dir(it, vv)
+              pressure_list=np.append(pressure_list, ip)
+              
+          fit=np.polyfit(t_list, pressure_list, degree)
+          fitder=np.polyder(fit,1)
+          k_alpha=np.polyval(fitder, tt)
+          
+          return k_alpha
+
+      def integral_dpdt(self, tref, tfin, vol): 
+          '''
+          Computes the integral of dP/dT in a given T-range and at
+          a given volume
+          
+          Args:
+              tref: reference temperature (minimum T; in K)
+              tfin: final temperature (in K)
+              vol: volume (in A^3)
+          '''       
+          
+          dpdt_l=lambda x: self.dpdt(x,vol)
+          integ,err=scipy.integrate.quad(dpdt_l, tref, tfin, epsrel=1e-5) 
+          
+          return integ
+      
+      def entropy(self,tt,pp=0):
+          '''
+          Computes the entropy at a given temperature an pressure
+          
+          Args:
+              tt: temperature (in K)
+              pp: pressure (in GPa; default 0)
+          '''
+          
+          volume=volume_dir(tt,pp)
+          ent,cv = entropy_dir_v(tt, volume)
+          return ent
+      
+      def cv(self, tt,pp=0):
+          '''
+          Computes the specific heat at constant volume at a 
+          given temperature and pressure
+          
+          Args: 
+              tt: temperature (in K)
+              pp: pressure (in GPa, default 0)
+              
+          Note:
+              The function computes the volume at the assigned temperature
+              and pressure (through the volume_dir function)
+              and then computes the specific heat at constant volume
+          '''
+          volume=volume_dir(tt,pp)
+          ent,cv=entropy_dir_v(tt, volume)
+          return cv
+      
+      def cp(self, tt, pp=0):
+          '''
+          Uses the function cp_dir to compute the specific heat at constant
+          pressure, at a given temperature and pressure
+          
+          Args:
+              tt: temperature (K)
+              pp: pressure (GPa; default 0)
+          '''
+          
+          return cp_dir(tt,pp)
+      
+      def cp_serie(self,tmin, tmax, nt=0, pp=0, fit='default', save='default',\
+                   tex='default', title='default', name='default',\
+                   phase='default'):
+          
+          '''
+          Make a plot and (optionally) a fit of the specific heat at 
+          constant pressure in a given temperature range and at a given
+          pressure
+          
+          Args:
+              tmin: minimum temperature in the range (K)
+              tmax: maximum temperature in the range (K)
+              pp: pressure (GPa, default 0)
+              
+          Note:    
+              See the documentation for the set_param method for
+              the meaning of all the other parameters
+          ''' 
+          if nt == 0:
+             nt=self.nt
+          if fit == 'default':
+             fit=self.fit
+          if save == 'default':
+             save=self.save
+          if tex == 'default':
+             tex=self.tex
+          if title == 'default':
+             title=self.title
+          if phase == 'default':
+             phase=self.phase
+          if name == 'default':
+             name='cp_plot'
+             
+          t_list=np.linspace(tmin, tmax, nt)
+          t_plot=np.linspace(tmin, tmax, nt*10)
+          cp_list=np.array([direct.cp(it, pp) for it in t_list])
+          
+          tit=''
+          if title:
+             tit='Specific heat at pressure '+str(pp)+' GPa'
+          if fit:
+             if flag_cp==False:
+                print("\nWarning: no polynomium defined for fitting Cp's")
+                print("Use CP keyword in input file")
+                return None
+             else:         
+                coef_ini=np.ones(lpow)
+                cp_fit, cp_cov=curve_fit(cp_fun,t_list,cp_list,p0=coef_ini) 
+                cp_fit_plot=cp_fun(t_plot,*cp_fit)  
+                x=[t_list, t_plot]
+                y=[cp_list, cp_fit_plot]
+                style=['k*', 'k-']
+                lab=['Actual values', 'Power series fit']
+                if tex:                  
+                     plot.multi(x,y,style, lab, xlab='Temperature (K)',\
+                                ylab='Cp (J/mol K)', title=tit, tex=True, save=save,\
+                                name=name)
+                else:
+                     plot.multi(x,y,style, lab, xlab='Temperature (K)',\
+                                 title=tit, ylab='Cp (J/mol K)', save=save,\
+                                 name=name)
+                if phase != '':
+                   print("")
+                   eval(phase).load_cp(cp_fit, power)
+                   eval(phase).info()
+                   print("")
+                else:          
+                   return cp_fit   
+         
         
 class thermal_expansion_class():
       """
@@ -8145,7 +8380,7 @@ def main():
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
     global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex, thermal_expansion
-    global plot
+    global plot, direct
     
     ctime=datetime.datetime.now()
     version="2.5.0 - 27/10/2021"
@@ -8195,7 +8430,8 @@ def main():
     delta_ctrl=delta_class()
     latex=latex_class()
     thermal_expansion=thermal_expansion_class()
-      
+    direct=direct_class()  
+    
     vol_opt.on()
     alpha_opt.on()    
     
