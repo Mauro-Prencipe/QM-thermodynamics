@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.5.0 27/10/2021
+# Version 2.5.1 10/06/2022
 #
 
 # Comment the following three lines to produce the documentation 
@@ -96,6 +96,18 @@ class flag:
         self.jwar += 1
     def reset(self):
         self.jwar=0
+        
+class zero_point:
+    def __init__(self):
+        self.flag=True
+    
+    def on(self):
+        self.flag=True
+        print("Zero point energy computation on")
+     
+    def off(self):
+        self.flag=False
+        print("Zero point energy computation off")
         
 class verbose_class():
     def __init__(self,value):
@@ -220,6 +232,12 @@ class data_info():
             print("\nZone center excluded modes: %s" % str(uniq))
         else:
             print("\nNo zone center excluded modes")
+            
+        if zp.flag:
+            print("\nZero point energy is explicitly computed\n")
+        else:
+            print("\nZero point energy is not computed: it must be included")
+            print("in the static energy file\n")
             
         if disp.ex_flag:
             uniq=np.unique(disp.excluded_list)
@@ -1206,12 +1224,14 @@ class disp_class():
             if not self.ex_flag:
                nfreq=nfreq+1
                fth=fth+d_deg[idx]*np.log(1-np.e**(ifr*e_fact/temp))*wgh[idx]
-               enz=enz+d_deg[idx]*ifr*ez_fact*wgh[idx]
+               if zp.flag:
+                  enz=enz+d_deg[idx]*ifr*ez_fact*wgh[idx]
             else:
                if not (idx in self.excluded_list):
                   nfreq=nfreq+1
                   fth=fth+d_deg[idx]*np.log(1-np.e**(ifr*e_fact/temp))*wgh[idx]
-                  enz=enz+d_deg[idx]*ifr*ez_fact*wgh[idx]
+                  if zp.flag:
+                     enz=enz+d_deg[idx]*ifr*ez_fact*wgh[idx]
             idx=idx+1 
           
         return enz+fth*kb*temp/conv
@@ -2053,6 +2073,8 @@ def read_file(data_path):
                kief_freq=np.array(kief_freq_inp)*csl*h/kb
                kieffer.kief_freq=kief_freq 
                kieffer.kief_freq_inp=kief_freq_inp
+            elif l0=='NZP':
+               zp.off()
             elif l0=='ANH':
                anharm.nmode=int(fi.readline().rstrip())
                anharm.mode=np.array([],dtype=int)
@@ -2183,10 +2205,11 @@ def read_file(data_path):
    if flag_super:
       supercell.set(snum)
          
-   if flag_cp:
+   if flag_cp:     
       power=power.rstrip()
-      power=list(map(float, power.split()))
+      power=list(map(float, power.split()))    
       lpow=len(power)
+                            
       test_cp=[ipw in cp_power_list for ipw in power]        
       if not all(test_cp): 
              print("WARNING: the power list for the Cp fit is not consistent")
@@ -3341,7 +3364,7 @@ def find_pressure_vt(vv,tt, pmin, pmax, prt=True):
       return p_0f  
     
 
-def bulk_dir(tt,prt=False, out=False, **kwargs):
+def bulk_dir(tt,prt=False, out=False, pmax=0., npmax=12, **kwargs):
     """
     Optimizes a BM3 EoS from volumes and total pressures at a given 
     temperature. In turn, phonon pressures are directly computed as volume
@@ -3353,6 +3376,10 @@ def bulk_dir(tt,prt=False, out=False, **kwargs):
     Args:
         tt: temperature
         prt (optional): if True, prints a P(V) list; default: False
+        pmax (optional): if greater than 0., sets the maximum pressure for the 
+                         EoS fit.
+        npmax: if pmax is greater than 0., sets the number of P/V points for the
+               EoS fit (default 12)
         
     Keyword Args:
         fix: Kp fixed, if fix=Kp > 0.1 
@@ -3402,14 +3429,29 @@ def bulk_dir(tt,prt=False, out=False, **kwargs):
         print(war1+war2)
         return
     
+    pmax_flag=False
+    if pmax > 0.:
+       minv=np.min(v_list) 
+       volmin=volume_dir(tt, pmax)
+       if volmin < minv:
+          volmin = minv
+          pmx=pressure_dir(tt, minv)
+          print("Pressure out of available the volume range")
+          print("it is reduced to: %5.2f" % pmx)
+       pmax_flag=True
+              
     f_fix_orig=f_fix.flag   
     volmax=volume_dir(tt,0.)
     if flag_volume_max.value:
        print("Computation stop. Use set_volume_range to fix the problem")
        stop()
-        
+          
     volnew=np.append(v_list,volmax)
     
+    if pmax_flag:
+       vol_pmax_list=np.linspace(volmin, volmax, npmax)
+       volnew=vol_pmax_list
+       
     p_list=np.array([])    
     for vi in volnew:
         pi=pressure_dir(tt,vi)
@@ -3811,7 +3853,7 @@ def bulk_modulus_adiabat(tt,pp,noeos=False, prt=True,**kwargs):
        return ks
         
 
-def static(plot=False, vmnx=[0., 0.]):
+def static(plot=False, vmnx=[0., 0.], prt=True):
     """
     Static EoS
     
@@ -3873,17 +3915,18 @@ def static(plot=False, vmnx=[0., 0.]):
     perr=np.sqrt(np.diag(pcov))
     ke=perr[1]*conv/1e-21
 
-    print("\nStatic BM3 EoS")
-    print("\nBulk Modulus: %5.2f (%4.2f) GPa" % (k_gpa, ke))
-    print("Kp:            %5.2f (%4.2f)" % (kp, perr[2]))
-    print("V0:           %5.4f (%4.2f) A^3" % (v0, perr[0]))
-    print("E0:            %5.8e (%4.2e) hartree" % (popt[3], perr[3]))
+    if prt:
+       print("\nStatic BM3 EoS")
+       print("\nBulk Modulus: %5.2f (%4.2f) GPa" % (k_gpa, ke))
+       print("Kp:            %5.2f (%4.2f)" % (kp, perr[2]))
+       print("V0:           %5.4f (%4.2f) A^3" % (v0, perr[0]))
+       print("E0:            %5.8e (%4.2e) hartree" % (popt[3], perr[3]))
     
-    if vol_flag:
-        print("\nStatic EoS computed in a restricted volume range:")
-        print(vol_selected)
+       if vol_flag:
+          print("\nStatic EoS computed in a restricted volume range:")
+          print(vol_selected)
     
-    print("\n")
+       print("\n")
 
     info.k0_static=k_gpa
     info.kp_static=kp
@@ -4020,20 +4063,25 @@ def p_static(nvol=50, v_add=[], e_add=[]):
     print("Standard deviation: %4.1e hartree" % std)
     print("Maximum discrepancy %6.3e hartree for a volume of %6.2f A^3" % (mx, vx))    
        
-def static_pressure_bm3(vv):
+def static_pressure_bm3(vv, prt=True):
     """
     Outputs the static pressure (in GPa) at the volume (vv)
     
     Args:
         vv: volume
     """
-    static(plot=False)
+          
+    static(plot=False, prt=prt)
     k0=info.popt[1]
     kp=info.popt[2]
     v0=info.popt[0]
     p_static_bm3=bm3(vv,v0, k0,kp)
     ps=p_static_bm3*conv/1e-21
-    print("Static pressure at the volume: %4.2f" % ps)
+    
+    if prt:
+       print("Static pressure at the volume: %4.2f" % ps)
+    else:
+       return ps
            
 def start_bm4():
     bm4.on()
@@ -4113,8 +4161,8 @@ def free(temperature):
                 else:
                    print("Negative frequency found: mode n. %d" % ifreq)
                    stop()
-                   
-                enz_i=enz_i+deg[ifreq]*freq_i*ez_fact
+                if zp.flag:   
+                   enz_i=enz_i+deg[ifreq]*freq_i*ez_fact
                 evib_i=enz_i+fth_i*kb*temperature/conv+eianh
                 
                 tot_i=ei+evib_i
@@ -4192,8 +4240,10 @@ def free_fit(temperature):
                else:
                   print("Negative frequency found: mode n. %d" % ifreq)
                   stop()
-                
-               enz_i=enz_i+deg[ifreq]*freq_i*ez_fact
+               
+               if zp.flag: 
+                  enz_i=enz_i+deg[ifreq]*freq_i*ez_fact
+                  
                evib_i=enz_i+fth_i*kb*temperature/conv+eianh
                                  
                tot_i=ei+evib_i
@@ -4228,7 +4278,7 @@ def free_fit_vt(tt,vv):
         vv: volume (A^3)
     """
     e_static=v_bm3(vv,*info.popt)
-    enz=0
+    enz=0.
     fth=0
     eianh=0.
     
@@ -4250,8 +4300,9 @@ def free_fit_vt(tt,vv):
            else:
               print("Negative frequency found: mode n. %d" % ifreq)
               stop()
-              
-           enz=enz+deg[ifreq]*freq_i*ez_fact
+          
+           if zp.flag:
+              enz=enz+deg[ifreq]*freq_i*ez_fact
         
     tot_no_static=enz+fth*kb*tt/conv+eianh       
     tot=e_static+tot_no_static 
@@ -5701,7 +5752,7 @@ def gamma_calc(tt,pol):
     
 
 def bulk_serie(tini,tfin,npoint,fit=True,degree=2,update=False,\
-               save='', tex=False, title=True, **kwargs):
+               save='', tex=False, title=True, xlim=-1, **kwargs):
     """
     Computes the bulk modulus K0 as a function of temperature in a given
     T range
@@ -5748,6 +5799,10 @@ def bulk_serie(tini,tfin,npoint,fit=True,degree=2,update=False,\
        
     plt.figure(7)
     plt.plot(t_serie,b_serie,"k*")
+    if xlim == -1:
+       plt.xlim(tini)
+    else:
+       plt.xlim(xlim)
     if title:
        plt.title("Bulk modulus as a function of T")
     if latex.flag:
@@ -6751,6 +6806,108 @@ def frequency_p_range(ifr, pmin, pmax, npoint, dir=False, temp=298.15, degree=1,
     
     print(fit_str)
     
+def frequency_t_range(ifr, tmin, tmax, npoint, dir=False, pressure=0., degree=1, \
+                      title=True, tex=False, save=False):
+    """
+    Frequency of a mode computed as a function of pressure in a given range,
+    at a fixed temperature.
+    
+    Args:
+        ifr: mode number
+        tmin, tmax, npoint: minimum and maximum temperature in the range (K), and
+                            number of points
+        pressure: pressure (default 0 GPa)
+        dir: if True, volume is computed through the volume_dir function;
+             otherwise, the EoS-based new_volume function is used (default False)
+        degree: degree of the fitting polynomial (default 1)
+        title: if False, title of the plot is suppressed (default True)
+        tex: if True, Latex output is used for the plot (default False)
+        save: if True, the plot is saved (default False)
+        
+    Note:
+        A fit of the frequencies vs volume (either poly or spline) is required.
+        
+    Note: 
+        if save is True and tex is True, the fontsize, the resolution and 
+        extension of the saved file are controlled by the parameters of the 
+        latex class. 
+    """    
+    
+    if not (flag_poly.flag or flag_spline.flag):
+       print("\n*** Warning No fit of frequency was set\n")
+       return 
+        
+    ntt=np.linspace(tmin, tmax, npoint)
+    
+    if dir:
+        freq_p=np.array([])
+        for it in ntt:
+            vol=volume_dir(it, pressure)
+            if flag_poly.flag:
+                ifreq=freq_v_fun(ifr, vol)
+                
+            elif flag_spline.flag:
+                ifreq=freq_spline_v(ifr, vol)          
+            freq_p=np.append(freq_p, ifreq)    
+    else:
+        if flag_poly.flag:
+           freq_p=np.array([freq_poly_p(ifr, it, pressure, plot=False, prt=False)[0] for it in ntt])
+        elif flag_spline.flag:
+           freq_p=np.array([freq_spline_p(ifr, it, pressure, plot=False, prt=False)[0] for it in ntt])
+                  
+    fit=np.polyfit(ntt, freq_p, degree)
+    
+    t_plot=np.linspace(tmin, tmax, npoint*10)
+    f_plot=np.polyval(fit, t_plot)
+    
+    fit_rev=np.flip(fit)
+    
+    fit_str='fit: freq = ' + str(fit_rev[0].round(2)) + ' + '
+     
+    for ic in np.arange(1, degree+1):
+        if ic == degree:
+           fit_str=fit_str + np.format_float_scientific(fit_rev[ic], precision=3)  + ' T^' + str(ic)
+        else:
+           fit_str=fit_str + np.format_float_scientific(fit_rev[ic], precision=3)  + ' T^' + str(ic) + ' + '
+
+    dpi=80
+    ext='png'
+    if tex: 
+        latex.on()
+        dpi=latex.get_dpi()
+        fontsize=latex.get_fontsize()
+        ext=latex.get_ext()
+        ticksize=latex.get_tsize()
+        
+    title="Mode number " + str(ifr)
+    label="Fit (degree: "+str(degree)+")"
+    plt.figure()    
+    plt.plot(ntt, freq_p, "k*", label="Actual values")
+    plt.plot(t_plot, f_plot, "k-", label=label)
+    if latex.flag:
+       plt.ylabel("Freq (cm$^{-1}$)", fontsize=fontsize)
+       plt.xlabel("T (K)", fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+       if title:
+          plt.suptitle(title, fontsize=fontsize)
+       plt.legend(frameon=False, prop={'size': fontsize})
+    else:
+       plt.ylabel("Freq (cm^-1)")
+       plt.xlabel("T (K)")
+       if title:
+          plt.title(title)
+       plt.legend(frameon=False)
+            
+    if save:
+       name=path+'/'+'mode_'+str(ifr)+'_vs_T.'+ext
+       plt.savefig(name, dpi=dpi, bbox_inches='tight')
+    
+    plt.show()
+    latex.off()
+    
+    print(fit_str)
+    
     
 def check_spline_total():
     """
@@ -7340,10 +7497,10 @@ def pressure_phonon_mode(ifr,tt,vol,method='poly'):
     pz_i=(1./(2*vol*1e-21))*h*(f_i*csl)*g_i
     pth_i=(1./(vol*1e-21))*nph*h*(f_i*csl)*g_i
     p_total_i=(pz_i+pth_i)*deg[ifr]
-       
-    return p_total_i
+    
+    return p_total_i, pz_i
 
-def pressure_phonon(tt,vol,method='poly',plot=True):
+def pressure_phonon(tt,vol,method='poly',plot=True, prt=True):
     """
     Vibrational pressure from all the normal modes at given temperature
     and volume
@@ -7369,11 +7526,17 @@ def pressure_phonon(tt,vol,method='poly',plot=True):
         return
         
     p_list=np.array([])    
+    pz_list=np.array([])
     for ifr in int_mode:
-            p_total_i=pressure_phonon_mode(ifr,tt,vol,method=method)
+            p_total_i, pz_i=pressure_phonon_mode(ifr,tt,vol,method=method)            
             p_list=np.append(p_list,p_total_i)
+            pz_list=np.append(pz_list, pz_i)
             
     p_total=p_list.sum()
+    pz_total=pz_list.sum()
+    
+    if not prt:
+       return p_total, pz_total
     
     if plot:        
        plt.figure()
@@ -7382,13 +7545,69 @@ def pressure_phonon(tt,vol,method='poly',plot=True):
        plt.ylabel("Pressure (GPa)")
        plt.show()
     
-       print("\nTotal phonon pressure: %4.2f GPa " % p_total)
+    print("\nTotal phonon pressure: %4.2f GPa " % p_total)
+    print("Zero Point pressure:   %4.2f GPa " % pz_total)
     
     if not plot:
        return p_list
-    else:
-       return
-
+    
+def pressure_temp(tmin, tmax, nt, ptot=0):
+    """
+    Computes contribution to the total pressure in a given
+    temperature range
+    
+    Args:
+        tmin: minimum temperature (K)
+        tmax: maximum temperature (K)
+        nt:   number of temperature values
+        ptot: total (external) pressure (in GPa; default 0 GPa) 
+    """
+    t_list=np.linspace(tmin, tmax, nt)
+    
+    ptotal=np.array([])
+    pstatic=np.array([])
+    pzp=np.array([])
+    pth=np.array([])
+    pvib=np.array([])
+    volume=np.array([])
+    
+    for it in t_list:
+        v_i=volume_dir(it, ptot)
+        pt_i=pressure_dir(it, v_i)
+        ps_i=static_pressure_bm3(v_i, prt=False)
+        pvib2_i, pz_i=pressure_phonon(it, v_i, prt=False)
+        
+        volume=np.append(volume, v_i)
+        ptotal=np.append(ptotal, pt_i)
+        pstatic=np.append(pstatic, ps_i)
+        pzp=np.append(pzp, pz_i)
+                
+    pvib=ptotal-pstatic
+    pth=pvib-pzp
+    
+    print("\nPressure analysis in a temperature range")
+    print("T in K; V in A^3; P in GPa\n")
+    print("P_st: Static pressure")
+    print("P_zp: Zero point pressure")
+    print("P_th: Thermal pressure")
+    print("P_vib: Vibrational pressure (P_zp + P_th)")
+    print("P_tot: Total pressure (sum of all the above pressures)")
+    
+    serie=(t_list, volume, pstatic, pzp, pth, pvib, ptotal)
+    pd.set_option('colheader_justify','right')
+    serie=pd.DataFrame(serie,index=["T","V","P_stat", "P_zp", "P_th", "P_vib", "P_tot"])
+    serie=serie.T
+    serie['T']=serie['T'].map('{:,.1f}'.format)
+    serie['V']=serie['V'].map('  {:,.4f}'.format)
+    serie['P_stat']=serie['P_stat'].map('   {:,.2f}'.format)
+    serie['P_zp']=serie['P_zp'].map('  {:,.2f}'.format)    
+    serie['P_th']=serie['P_th'].map('  {:,.2f}'.format)    
+    serie['P_vib']=serie['P_vib'].map('  {:,.2f}'.format)    
+    serie['P_tot']=serie['P_tot'].map('  {:,.2f}'.format)    
+    print("")
+    print(serie.to_string(index=False))
+    
+        
 def upload_mineral(tmin,tmax,points=12,HT_lim=0., t_max=0., deg=1, g_deg=1, model=1, mqm='py',\
                    b_dir=False, blk_dir=False, extra_alpha=True, volc=False):
     """
@@ -8357,7 +8576,8 @@ def reset_flag():
     flag_list=['disp.flag', 'disp.input', 'kieffer.flag', 'kieffer.input', 'anharm.flag',
                'lo.flag', 'flag_spline.flag', 'flag_poly.flag', 'f_fix.flag', 'verbose.flag',
                'bm4.flag', 'disp.eos_flag', 'disp.fit_vt_flag', 'static_range.flag',
-               'vd.flag', 'disp.thermo_vt_flag', 'disp.error_flag','flag_fu', 'p_stat.flag']
+               'vd.flag', 'disp.thermo_vt_flag', 'disp.error_flag','flag_fu', 'p_stat.flag',
+               'flag_cp', 'flag_alpha']
     
     for iflag in flag_list:      
         r_flag=iflag+'=False'
@@ -8365,6 +8585,7 @@ def reset_flag():
         
     flag_view_input.on()
     volume_correction.off()
+    zp.on()
     
     print("All global flags set to False; flag list:\n")
     
@@ -8383,16 +8604,16 @@ def remark(string):
    
 def main():    
     global h, kb, r, csl, avo, conv, fact, e_fact, ez_fact,ctime, version
-    global al_power_list, cp_power_list
+    global al_power_list, cp_power_list, power, power_a
     global flag_fit_warning, flag_volume_warning, flag_volume_max, flag_warning
     global flag_view_input, flag_dir, f_fix, vol_opt, alpha_opt, info, lo, gamma_fit
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
     global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex, thermal_expansion
-    global plot, direct
+    global plot, direct, zp
     
     ctime=datetime.datetime.now()
-    version="2.5.0 - 27/10/2021"
+    version="2.5.1 - 10/06/2022"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
@@ -8410,6 +8631,7 @@ def main():
     cp_power_list=(0, 1, -1, 2, -2, 3, -3, -0.5)
     
     vd=volume_delta_class()
+    zp=zero_point()
     flag_fit_warning=flag(True)
     flag_volume_warning=flag(True) 
     flag_volume_max=flag(False)     
