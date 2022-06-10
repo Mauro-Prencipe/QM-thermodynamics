@@ -24,6 +24,7 @@ List of keywords:
 - INI     (**optional**):   initial parameters for the fit of a volume integrated 3° order Birch-Murnaghan EoS to the *F* free energy(volume) data
 - KIEF    (**optional**):   input for the modified Kieffer model
 - LO      (**optional**):   file name of the LO-TO splitting data
+- NZP     (**optional**):   zero point energy is not explictly computed (because it is already added to the static contribution)
 - SET     (**mandatory**):  set of volumes/frequencies to be used in the calculation (a list of integers indexing the file specified by the VOLUME keyword)
 - STATIC  (**mandatory**):  file name of static energy curve (volumes and static internal energy of the crystal)
 - PSTATIC (**optional**):   file name of the static pressures (volumes and static pressures) followed by the value of the static energy at the equilibrium static volume
