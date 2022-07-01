@@ -292,6 +292,17 @@ class data_info():
                
             print("\n --------------------------------------------------------")   
             
+        if ac_approx.flag:
+           print("\nEstimation of the contribution to the vibrational pressure")
+           print("from acoustic phonon branches (no DISP computation) is activated\n")
+           print("Number of bins of the histogram of frequencies: %2i" % ac_approx.nbin)
+           print("\nLower frequency bin:")
+           print("Number of modes:   %3i" % ac_approx.nmode)
+           print("Minimum frequency: %5.1f" % ac_approx.fmin)
+           print("Maximum frequency: %5.1f" % ac_approx.fmax)
+           print("Mean frequency:    %5.1f" % ac_approx.fmean)
+        
+           
         if lo.flag:
             out_lo=(lo.mode, lo.split)
             df_out=pd.DataFrame(out_lo, index=['Mode', 'Split'])
@@ -508,6 +519,19 @@ class kieffer_class():
         plt.show()
         
 class acoustic_approx_class():
+    """
+    Class used for the estimation of the contribution to the vibrational 
+    pressure from acoustic modes, in case supercell data are not available.
+    
+    Use the method 'on' to switch on the correction ('off' to switch it off)
+    
+    The algorithm is used to compute such contribution if the total pressure
+    at given temperature and volume is evaluated by the pressure_dir function
+    
+    Example:
+        >>> ac_approx.on()
+        >>> bulk_dir(298)
+    """
     def __init__(self):
         self.flag=False
         self.fit=None
@@ -517,16 +541,42 @@ class acoustic_approx_class():
         self.tmin=20.
         self.nbin=4
         self.fit_flag=True
+        self.disp=False
         
-    def set(self, tmin=20., tmax=1000., deg=3, nt=12, nbin=4):
+    def set(self, tmin=20., tmax=1000., deg=3, nt=12, nbin=4, on=True):
+        """
+        Sets parameters for the estimation of the vibrational pressure
+        of low frequency modes, as a function of temperature
+        
+        Args:
+            tmin, tmax, nt: minimum, maximum and number of points defining
+                            the temperature range for the estimation of the 
+                            vibrational pressure as a function of T
+            deg: degree of the polynomial fitting the P(T) values
+            nbin: number of bins for the construction of the frequency
+                  histogram
+            on: if True, the P(T) polynomial is computed after the set
+                method was invoked, and the acoustic correction is 
+                switched on; if 'on' is False, the requested parameters are 
+                changed but the correction is not switched on, or recomputed.
+        """
         self.tmin=tmin
         self.tmax=tmax
         self.deg=deg
         self.nt=nt
         self.nbin=nbin
         
+        if on:
+           self.on()
+        
     def on(self):    
         self.fit=acoustic_func()
+        
+        if disp.flag:
+           print("\n****   Note    ****")
+           disp.off()
+           self.disp=True
+           
         if self.fit_flag:
            self.flag=True
         else:
@@ -536,6 +586,9 @@ class acoustic_approx_class():
 
     def off(self):
         self.flag=False
+        if self.disp:
+           print("\n****   Note    ****")
+           disp.on()
                
 class bm4_class():
     """
@@ -7631,7 +7684,31 @@ def pressure_phonon(tt,vol,method='poly',plot=True, prt=True):
        return p_list
    
 def pressure_phonon_f_range(tt, pp=0, prt=True):
-     
+    """
+    Computes the vibrational pressure from optic modes which subdivided in a number
+    of intervals according to their frequencies.
+    
+    Args:
+        tt: temperature (K) at which the vibrational pressures are computed
+        pp: pressure (GPa; default 0)
+        prt: if True, a detailed printout is provided; if False, the pressure
+             per mode in the low frequency interval is returned
+             
+    Notes: 
+        This function is mainly used to estimate the contribution to the total 
+        pressure due to acoustic phonons, in case no supercell data are available
+        This estimation and the relative corrections to the elastic properties
+        are performed by the methods of the ac_approx instance of the
+        acoustic_approx_class.
+        
+        To change the number of intervals (bins) to build the histogram of
+        the frequencies, use the ac_approx.set method, by specifying the
+        nbin keyword argument
+
+    Example:
+        >>> ac_approx.set(nbin=5)
+        >>> pressure_phonon_f_range(298)
+    """ 
     if not flag_poly.flag_stack:
        print("At present, the function requires the polynomial fits of")
        print("the frequencies")
@@ -7687,6 +7764,11 @@ def pressure_phonon_f_range(tt, pp=0, prt=True):
         if pres_f[ipos].nmode != 0:
            pres_f[ipos].ppm=pres_f[ipos].p/pres_f[ipos].nmode
     
+    ac_approx.fmin=pres_f[0].fmin
+    ac_approx.fmax=pres_f[0].fmax
+    ac_approx.fmean=pres_f[0].f_mean
+    ac_approx.nmode=pres_f[0].nmode
+    
     if prt:
        print("\nVibrational pressure (GPa) as a function of frequency range\n")
        print("N. mod.  mean freq   min freq    max freq     pressure   pres. per mode")    
@@ -7697,7 +7779,15 @@ def pressure_phonon_f_range(tt, pp=0, prt=True):
        return pres_f[0].ppm
     
 def acoustic_func():
+    """
+    Estimates the vibrational pressure for acoustic modes, as a function of
+    temperature, in case frequencies data from supercell calculations are not 
+    available.
     
+    Note:
+        all the required computational parameters are set, used and controlled
+        by the ac_approx methods of the acoustic_approx_class.
+    """
     ac_approx.fit_flag=True
     if not flag_poly.flag_stack:
        print("The function requires the polynomial fits of the frequencies")
@@ -7724,8 +7814,12 @@ def acoustic_func():
     p_plot=np.polyval(fit, t_plot)
     
     plt.figure()
-    plt.plot(t_plot, p_plot, "k-")
-    plt.plot(t_list, p_list, "k*")
+    plt.plot(t_plot, p_plot, "k-", label="Fit")
+    plt.plot(t_list, p_list, "k*", label="Actual values")
+    plt.xlabel("T (K)")
+    plt.ylabel("P (GPa)")
+    plt.legend(frameon=False)
+    plt.title("P acoustic per mode")                   
     plt.show()
     
     return fit
