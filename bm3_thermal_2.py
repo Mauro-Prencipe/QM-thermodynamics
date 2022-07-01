@@ -371,7 +371,8 @@ class exclude_class():
         self.flag=False
     def on(self):
         self.ex_mode=self.ex_mode_keep
-        self.flag=True        
+        self.flag=True 
+                
                        
 class fix_flag:
     def __init__(self,value=0.):
@@ -506,6 +507,35 @@ class kieffer_class():
         plt.title("Free energy from acustic modes (Kieffer model)")
         plt.show()
         
+class acoustic_approx_class():
+    def __init__(self):
+        self.flag=False
+        self.fit=None
+        self.deg=3
+        self.nt=12
+        self.tmax=1000.
+        self.tmin=20.
+        self.nbin=4
+        self.fit_flag=True
+        
+    def set(self, tmin=20., tmax=1000., deg=3, nt=12, nbin=4):
+        self.tmin=tmin
+        self.tmax=tmax
+        self.deg=deg
+        self.nt=nt
+        self.nbin=nbin
+        
+    def on(self):    
+        self.fit=acoustic_func()
+        if self.fit_flag:
+           self.flag=True
+        else:
+           self.flag=False
+           print("The acoustic approximation requires the polynomial")
+           print("fits of the frequencies")
+
+    def off(self):
+        self.flag=False
                
 class bm4_class():
     """
@@ -1270,7 +1300,7 @@ class disp_class():
               plt.title("Helmholtz free energy from off-centered modes")
               plt.show()    
   
-    def free_fit_ctrl(self, min_t=10., t_only_deg=4, degree_v=4, degree_t=4, nt=24, disp=True):
+    def free_fit_ctrl(self, min_t=10., t_only_deg=6, degree_v=4, degree_t=4, nt=24, disp=True):
         """
         Free fit driver: sets the relevant parameters for the fit computation
         of the F(V,T) function, on the values of F calculated on a grid
@@ -1490,6 +1520,7 @@ class volume_delta_class():
         
       def set_frac(self,frac):
            self.frac=frac
+           self.set_delta()
            
       def on(self):
           self.flag=True
@@ -2082,10 +2113,10 @@ def read_file(data_path):
                anharm.brill=np.array([],dtype=int)
                for im in np.arange(anharm.nmode):
                    line=fi.readline().rstrip()
-                   mw=list(map(int, line.split()))                
+                   mw=list(map(float, line.split()))                
                    mode=int(mw[0])
                    brill=int(mw[1])
-                   wgt=int(mw[2])
+                   wgt=float(mw[2])
                    anharm.mode=np.append(anharm.mode, mode)
                    anharm.wgt=np.append(anharm.wgt, wgt) 
                    anharm.brill=np.append(anharm.brill, brill)
@@ -2598,7 +2629,7 @@ def quick_start(path):
     Executes read_file; static (static equation of state)
     and stacks data for the application of the Kieffer model,
     if required with the optional 'KIEFFER' keyword in input.txt
-    """
+    """    
     read_file(path)
     static(plot=False)
     if kieffer.flag:
@@ -2906,10 +2937,14 @@ def pressure_dir(tt,vv):
          
     vfit=np.polyfit(v_range,f_list,deg)
     vfitder=np.polyder(vfit,1)
-    press=-1*np.polyval(vfitder,vv)
-    return press*conv/1e-21
-
-
+    press=-1*np.polyval(vfitder,vv)*conv/1e-21
+    
+    if not ac_approx.flag:
+       return press
+    else:
+       p_ac=np.polyval(ac_approx.fit, tt)
+       press=press+p_ac*3
+       return press
     
 def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
     
@@ -3417,7 +3452,7 @@ def bulk_dir(tt,prt=False, out=False, pmax=0., npmax=12, **kwargs):
        else:
           fix=fix_value
           flag_x=True
-          p0_f=[ini[0],ini[1]]
+          p0_f=[ini[0],ini[1]]  
     
     if flag_spline.flag:
         v_list=flag_spline.fit_vol
@@ -3526,7 +3561,27 @@ def bulk_dir(tt,prt=False, out=False, pmax=0., npmax=12, **kwargs):
             print(" %5.3f   %5.2f" % (vp_i[0], vp_i[1])) 
             
 def bulk_dir_serie(tini, tfin, npoints, degree=2, update=False, **kwargs):
-     
+    
+    """
+    Computes the bulk modulus K0 in a given temperature range, by using 
+    the bulk_dir function (BM3 fit on a PV data set, at each T).
+    
+    Args:
+        tini, tfin, npoints: minimum, maximum and number of points defining
+                             the T range
+        degree: degree of the K0(T) fitting polynomial
+        update: if True, the coefficients of the K0(T) fitting polynomial
+                are returned (default False)
+                
+    Note: 
+        It is advised to fix the Kp value at the different temperatures
+        to get the K0 values following reasonable trends. In order to do that,
+        use the optional keyword 'fix' explicitly, followed by the Kp value,
+        and note that the set_fix function does NOT work in this case.
+        
+    Example:
+        >>> bulk_dir_serie(300, 800, 12, degree=1, fix=4.5)
+    """ 
     l_arg=list(kwargs.items())
     fixpar=False
     for karg_i in l_arg:
@@ -3537,6 +3592,7 @@ def bulk_dir_serie(tini, tfin, npoints, degree=2, update=False, **kwargs):
     t_serie=np.linspace(tini, tfin, npoints)
     tx_serie=np.array([])
     b_serie=np.array([])
+    kp_serie=np.array([])
     for ti in t_serie:
         flag_dir.off()
         if not fixpar:
@@ -3545,10 +3601,16 @@ def bulk_dir_serie(tini, tfin, npoints, degree=2, update=False, **kwargs):
                bi,kpi=bulk_dir(ti, serie=True, fix=fix_value)
         if not flag_dir.value:
            b_serie=np.append(b_serie,bi)
+           kp_serie=np.append(kp_serie, kpi)
            tx_serie=np.append(tx_serie,ti)
         else:
             pass
+  
     
+    print("\n  T      K0       K'")
+    for ti, bi, kpi in zip(tx_serie, b_serie, kp_serie):
+        print("%4.1f  %6.2f  %6.2f" % (ti, bi, kpi))
+        
     t_serie=tx_serie
     
     plt.figure()
@@ -6301,7 +6363,7 @@ def eosfit_dir(file_name, unit=False):
                pvt=np.array([pi, vi, ti])
                eos_data=np.append(eos_data,pvt)
     
-    iraw=np.int(eos_data.size/3)
+    iraw=int(eos_data.size/3)
     eosdata=np.reshape(eos_data,(iraw,3))
     string='TITLE  Input prepared with Numpy script\nformat 1 P  V  T'
     np.savetxt(file_name, eosdata, fmt="%5.3f %12.4f %8.2f", \
@@ -6908,7 +6970,24 @@ def frequency_t_range(ifr, tmin, tmax, npoint, dir=False, pressure=0., degree=1,
     
     print(fit_str)
     
+def frequency_temperature(mode_list, temp_list, pres=0):
+
+    vol_t=np.array([])
+    for it in temp_list:
+        iv=volume_dir(it, pres)
+        vol_t=np.append(vol_t, iv)
     
+    for iq in mode_list:
+        f_list=np.array([])
+        for iv in vol_t:
+            ff=freq_v_fun(iq, iv)
+            f_list=np.append(f_list, ff)
+        plist=[]
+        for idf in f_list:    
+            p='{:6.1f}'.format(idf) 
+            plist.append(float(p))
+        print(plist)
+            
 def check_spline_total():
     """
     Plots the frequencies of all the modes as a function of
@@ -7550,7 +7629,107 @@ def pressure_phonon(tt,vol,method='poly',plot=True, prt=True):
     
     if not plot:
        return p_list
+   
+def pressure_phonon_f_range(tt, pp=0, prt=True):
+     
+    if not flag_poly.flag_stack:
+       print("At present, the function requires the polynomial fits of")
+       print("the frequencies")
+       return
+        
+    class pressure_class():
+        pass  
+        
+    vol=volume_dir(tt, pp)
+    p_total=np.array([])
+    freq=np.array([])
     
+    modes=int_mode
+    if exclude.flag:
+       modes=np.setdiff1d(int_mode, exclude.ex_mode)
+    
+    size=np.size(modes)
+        
+    nbin=ac_approx.nbin
+    
+    pres_f=np.ndarray((nbin,), dtype=object)
+    
+    for ifr in range(size):
+        ifreq=freq_v_fun(ifr, vol)
+        freq=np.append(freq, ifreq)
+    
+    fmin=np.min(freq)
+    fmax=np.max(freq)
+    bins=np.linspace(fmin, fmax, nbin)
+    dist=np.digitize(freq, bins)            
+    
+    for ipos in range(nbin):
+        pres_f[ipos]=pressure_class()
+        pres_f[ipos].p=0.
+        pres_f[ipos].fmin=0.
+        pres_f[ipos].fmax=0.
+        pres_f[ipos].f_mean=0.
+        pres_f[ipos].f_list=freq[np.where(dist == ipos+1)]
+        pres_f[ipos].nmode=np.size(pres_f[ipos].f_list)
+        if pres_f[ipos].nmode != 0:
+           pres_f[ipos].f_mean=np.average(pres_f[ipos].f_list)
+           pres_f[ipos].fmin=np.min(pres_f[ipos].f_list)
+           pres_f[ipos].fmax=np.max(pres_f[ipos].f_list)
+         
+     
+    for ifr in range(size):    
+        i_pressure, _ = pressure_phonon_mode(ifr,tt,vol)
+        i_pos=dist[ifr]-1
+        pres_f[i_pos].p=pres_f[i_pos].p+i_pressure 
+        
+    for ipos in range(nbin):
+        pres_f[ipos].ppm=0.
+        if pres_f[ipos].nmode != 0:
+           pres_f[ipos].ppm=pres_f[ipos].p/pres_f[ipos].nmode
+    
+    if prt:
+       print("\nVibrational pressure (GPa) as a function of frequency range\n")
+       print("N. mod.  mean freq   min freq    max freq     pressure   pres. per mode")    
+       for ipos in range(nbin):
+            print(" %3i      %6.1f      %6.1f      %6.1f      %6.2f       %6.2f" % (pres_f[ipos].nmode, pres_f[ipos].f_mean, \
+                                    pres_f[ipos].fmin, pres_f[ipos].fmax, pres_f[ipos].p, pres_f[ipos].ppm))
+    else:
+       return pres_f[0].ppm
+    
+def acoustic_func():
+    
+    ac_approx.fit_flag=True
+    if not flag_poly.flag_stack:
+       print("The function requires the polynomial fits of the frequencies")
+       ac_approx.fit_flag=False
+       return
+   
+    tmax=ac_approx.tmax
+    tmin=ac_approx.tmin
+    nbin=ac_approx.nbin
+    nt=ac_approx.nt
+    ndeg=ac_approx.deg
+    
+    t_list=np.linspace(tmin, tmax, nt)
+    p_list=np.array([])
+    
+    
+    for it in t_list:
+        ip=pressure_phonon_f_range(it, pp=0, prt=False)
+        p_list=np.append(p_list, ip)
+    
+    fit=np.polyfit(t_list, p_list, ndeg)
+    
+    t_plot=np.linspace(tmin, tmax, 100)
+    p_plot=np.polyval(fit, t_plot)
+    
+    plt.figure()
+    plt.plot(t_plot, p_plot, "k-")
+    plt.plot(t_list, p_list, "k*")
+    plt.show()
+    
+    return fit
+
 def pressure_temp(tmin, tmax, nt, ptot=0):
     """
     Computes contribution to the total pressure in a given
@@ -8610,7 +8789,7 @@ def main():
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
     global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex, thermal_expansion
-    global plot, direct, zp
+    global plot, direct, zp, ac_approx
     
     ctime=datetime.datetime.now()
     version="2.5.1 - 10/06/2022"
@@ -8661,7 +8840,8 @@ def main():
     delta_ctrl=delta_class()
     latex=latex_class()
     thermal_expansion=thermal_expansion_class()
-    direct=direct_class()  
+    direct=direct_class() 
+    ac_approx=acoustic_approx_class()
     
     vol_opt.on()
     alpha_opt.on()    
