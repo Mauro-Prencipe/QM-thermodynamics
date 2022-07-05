@@ -1217,6 +1217,47 @@ class disp_class():
         fit=self.spline[ifr](vv)
         return fit.item(0)
     
+    def select(self, mfreq, fit=False):
+        """
+        Selects off-center modes whose frequencies are below a given
+        threshold. It may be useful in order to exclude, from the calculation
+        of the F(V,T) surface, those modes which could be affected by 
+        intrinsic anharmonicity.
+        
+        Args: 
+            mfreq: frequency threshold
+            fit: if True, the selected modes are added to the 
+                 excluded list, and a fit of the F(V,T) surface 
+                 is computed.
+            
+        Examples:
+            >>> disp.free_exclude(disp.select(100.))
+            >>> disp.free_fit_vt()
+            
+            >>> disp.select(100., fit=True)
+            
+        Note:
+            The elimination of some modes in the computation of the F(V,T)
+            surface is not, in principle, a correct procedure to follow, no
+            matter about the reason behind their exclusion. In this view,
+            the select function here defined should be used to just estimate 
+            the impact of those 'troublesome' modes, and not a way to produce
+            stable and reliable results. 
+        """
+        sel=np.array([], dtype=int)
+        for iset in range(self.nset):
+            isel=np.where(self.freq[iset] < mfreq)
+            sel=np.append(sel, isel)
+        
+        sel=np.unique(sel)
+        
+        if fit:
+           self.free_exclude(sel)
+           self.free_fit_vt()
+        else:
+           return list(sel)
+         
+    
     def check(self,ifr):
         """
         Check of the frequencies fit quality for a specified mode
@@ -1253,6 +1294,14 @@ class disp_class():
             >>> disp.check_multi(np.arange(10))
         """
         for ifr in fr_l:
+            self.check(ifr)
+            
+    def check_all(self):
+        """
+        Check of the frequencies fit quality for all the off-center modes
+        """
+
+        for ifr in range(self.f_size):
             self.check(ifr)
             
     def free_exclude(self,ex_list):
@@ -1353,7 +1402,7 @@ class disp_class():
               plt.title("Helmholtz free energy from off-centered modes")
               plt.show()    
   
-    def free_fit_ctrl(self, min_t=10., t_only_deg=6, degree_v=4, degree_t=4, nt=24, disp=True):
+    def free_fit_ctrl(self, min_t=10., t_only_deg=6, degree_v=4, degree_t=4, nt=24, fit=True, disp=True):
         """
         Free fit driver: sets the relevant parameters for the fit computation
         of the F(V,T) function, on the values of F calculated on a grid
@@ -1363,7 +1412,7 @@ class disp_class():
             min_t: minimum temperature for the construction of the 
                    VT grid (default=10.)
             degree_v: maximum degree of V terms of the surface (default=4)
-            degree_t: maximum degree ot T terms of the sarface (default=4)
+            degree_t: maximum degree ot T terms of the surface (default=4)
             t_only_degree: degree of the T polynomial for a single volume 
                            phonon dispersion (default=4)
             nt: number of points along the T axis for the definition of the 
@@ -1386,7 +1435,7 @@ class disp_class():
         self.free_nt=nt
         self.free_disp=disp
         
-        if self.input_flag:
+        if self.input_flag & fit:
            self.free_fit_vt()
            self.free_fit(self.temp,self.vol[0])
         
