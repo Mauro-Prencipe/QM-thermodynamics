@@ -68,6 +68,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import curve_fit
 
+from IPython import get_ipython
+
+# get_ipython.run_line.magic('cls')
+# get_ipython().magic('reset -sf')
+
 class anh_class():
     pass
 
@@ -87,22 +92,37 @@ def load_files():
    '''
  
    data=np.loadtxt(path+'volumes.dat')
-    
-   volumes=data[:,0]
-   h_freq=data[:,1]
-   qmn=data[:,2]
-   qmx=data[:,3]
-   nvol=volumes.size
+   
+   if data.size==4:
+      volumes=np.ndarray((1,), buffer=np.array(data[0]))
+      h_freq=np.ndarray((1,), buffer=np.array(data[1]))
+      qmn=np.ndarray((1,), buffer=np.array(data[2]))
+      qmx=np.ndarray((1,),buffer=np.array(data[3]))
+      nvol=1
+   else:
+      volumes=data[:,0]
+      h_freq=data[:,1]
+      qmn=data[:,2]
+      qmx=data[:,3]
+      nvol=volumes.size
+      
    scan_name=np.loadtxt(path+"input.txt", dtype=str)
    mode_vect=np.loadtxt(path+"vect.dat", dtype=float)
    glob.data=data
    glob.volumes=volumes
    glob.h_freq=h_freq
    glob.nvol=nvol
-   glob.scan_name=scan_name
-   glob.mode_vect=mode_vect
-   glob.qmn=qmn
-   glob.qmx=qmx
+   
+   if data.size==4:
+      glob.scan_name=np.array([scan_name]) 
+      glob.mode_vect=mode_vect
+      glob.qmn=qmn
+      glob.qmx=qmx
+   else:    
+      glob.scan_name=scan_name
+      glob.mode_vect=mode_vect
+      glob.qmn=qmn
+      glob.qmx=qmx
 
    prn_vol=str(volumes)
    print("Number of data SCAN's: %3i:" % nvol)
@@ -127,8 +147,12 @@ def set_up():
             test=((anh[i].q >= qmn) & (anh[i].q <= qmx))
             anh[i].q = anh[i].q[test]
             anh[i].e = anh[i].e[test]
-            
-        anh[i].vector=glob.mode_vect[:,i]
+        
+        if glob.nvol==1:
+            anh[i].vector=glob.mode_vect
+        else:
+            anh[i].vector=glob.mode_vect[:,i]
+        
         fh_crys=anh[i].h_freq*csl
         anh[i].omega=2*np.pi*fh_crys
         anh[i].qmax=np.sqrt(sum(anh[i].vector**2))
@@ -153,6 +177,9 @@ def start_fit(iv, npt=40):
   fit_quad,_ =curve_fit(energy_quad,q,e)
   
   anh[iv].par=fit_par
+
+#  anh[iv].par=fit_quad
+#  anh[iv].par=np.append(anh[iv].par, [0., 0.])
   
   min_q=np.min(q)
   max_q=np.max(q)
@@ -375,7 +402,8 @@ def start(temp=300):
     for ii in np.arange(glob.nvol):
         print("\n--------------\nVolume N. %3i" % ii)
         print("Volume %6.3f A^3, harmonic freq.: %6.2f cm^-1" %\
-             (anh[ii].vol, anh[ii].h_freq))        
+             (anh[ii].vol, anh[ii].h_freq)) 
+        print("Scan data file:  %s" % glob.scan_name[ii])
         computation(ii)
         check_partition(ii,temp)
         frequencies(ii)
@@ -403,11 +431,12 @@ def helm_fit(temp=300):
     helm_val=helm_val.reshape(nt,glob.nvol)
     vl,tl=np.meshgrid(vl,tl)
 
-    pl=np.arange(power_limit+1)
+    ptt=np.arange(pt+1)
+    pvv=np.arange(pv+1)
     p_list=np.array([],dtype=int)
     
-    for ip1 in pl:
-        for ip2 in pl:
+    for ip1 in ptt:
+        for ip2 in pvv:
             i1=ip2
             i2=ip1-ip2
             if i2 < 0:
@@ -420,7 +449,7 @@ def helm_fit(temp=300):
     
     glob.p_list=p_list.reshape(pterm,2) 
     
-    x0=np.ones(pterm)
+    x0=np.zeros(pterm)
     
     vl=vl.flatten()
     tl=tl.flatten()
@@ -443,10 +472,10 @@ def helm_fit(temp=300):
     fig = plt.figure(figsize=(8,8))
     ax = fig.add_subplot(111,projection='3d', )
     
-    ax.scatter(vl,tl,helm_val,c='r')
-    ax.plot_surface(v_plot, t_plot, h_plot)
-    ax.set_xlabel("Volume", labelpad=7)
-    ax.set_ylabel("Temperature", labelpad=7)
+    ax.plot_surface(t_plot, v_plot, h_plot)
+    ax.scatter(tl,vl,helm_val,c='r')
+    ax.set_ylabel("Volume", labelpad=7)
+    ax.set_xlabel("Temperature", labelpad=7)
     ax.set_zlabel('F(V,T)', labelpad=8)
     plt.show()
     
@@ -464,7 +493,7 @@ def helm_fit(temp=300):
     file.close()
     
     print("\nFile %s written" % outfile)
-    print("V, T polynomial fit of degree %3i" % power_limit)
+    print("V, T polynomial fit of degree %3i %3i" % (pv, pt))
     print("Temperature range: tmin=%4.1f, tmax=%4.1f" % (tmin,tmax))
     
     vmin=np.min(glob.volumes)
@@ -489,9 +518,9 @@ def helm_func(data,*par):
     nterm=glob.p_list.shape[0]
     func=0.   
     for it in np.arange(nterm):
-        pv=glob.p_list[it][0]
-        pt=glob.p_list[it][1]
-        func=func+par[it]*(vv**pv)*(tt**pt)
+        pvv=glob.p_list[it][0]
+        ptt=glob.p_list[it][1]
+        func=func+par[it]*(vv**pvv)*(tt**ptt)
             
     return func
 
@@ -544,7 +573,7 @@ def plot_levels(iv, max_lev, qmin=0., qmax=0., tmin=300, tmax=1000, nt=5, \
            prob=np.append(prob, iprob)
            
     prob=prob.reshape(nt,max_lev)
-    df=pd.DataFrame(prob,index=t_list)
+    df=pd.DataFrame(prob,index=t_list.round(1))
     df=df.T
     print("Energy levels occupation (probabilities) at several")
     print("temperatures in the %4.1f - % 4.1f interval\n" % (tmin, tmax))
@@ -736,10 +765,24 @@ def lorentz(f0, ff, fwhm):
     denom=(ff-f0)**2+(f2**2)
     return numer/denom
 
+def single(temp=300, max_lev=5, qmin=0., qmax=0., tmin=300, tmax=1000, nt=4, nline=4,\
+           tail=4., head=4., sigma=2., fwhm=2., eta=1., npp=240):
+    """
+    Computation in case of a single volume. Optional input parameters are
+    those described for the plot_levels and spectrum functions.
+    """
+    set_up()
+    start_fit(0)
+    energy_anh(0)
+    plot_levels(0, max_lev, qmin, qmax, tmin, tmax, nt, \
+                    degree=4,chk=False, temp=300)
+    spectrum(0,temp,nline, tail, head, sigma, fwhm, eta, npp)
+    
+    
 def main():
     global ctime, h, k, r, csl, avo, ht, bohr, uma, iun, conv, anh
     global glob, flag, abs_path, path, outfile, temp, power_limit
-    global tmin, tmax, nt, Version
+    global tmin, tmax, nt, Version, pv, pt
     
     Version="1.1 - 16/07/2020"
     ctime=datetime.datetime.now()
@@ -775,7 +818,15 @@ def main():
     temp=temp.split()
 
     pwl=fi.readline()
-    power_limit=int(pwl.rstrip())
+    power_limit=pwl.rstrip().split()
+    if len(power_limit) == 1:
+        power_limit=int(power_limit[0])
+        pv=power_limit
+        pt=pv
+    else:
+        pv=int(power_limit[0])
+        pt=int(power_limit[1])
+    
 
     tmin=float(temp[0])
     tmax=float(temp[1])
