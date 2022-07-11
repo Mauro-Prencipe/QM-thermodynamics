@@ -1420,8 +1420,9 @@ class disp_class():
             disp: it True, a plot of the surface is shown (default=True)
             
         Note:
-            The method does not execute the fit, but it defines the most
-            important parameters. The fit is done by the free_fit_vt() method.
+            By default the method does execute the fit, unless fit=False; 
+            in the latter case, it just defines the most important parameters 
+            for the fit (which is done by the free_fit_vt() method).
             
         Note: 
             the volumes used for the construction of the VT grid are those
@@ -1570,6 +1571,20 @@ class disp_class():
         free_disp=np.polyval(self.fit,temp)
         return free_disp
     
+    def pressure(self,temp,p_total):
+        volume=volume_dir(temp, p_total)
+        dv=vd.delta
+        temp=float(temp)
+        volume=float(volume)
+        f1=self.free_vt(temp, volume+dv)
+        f2=self.free_vt(temp, volume-dv)
+        p=-1*(f1-f2)/(2.*dv)
+        p=p*conv/(disp.molt*1e-21)
+        
+        print("Pressure from off center modes only: %6.2f GPa" % p)
+        
+        
+    
 class volume_delta_class():
       """
       Defines a suitable V range for the numerical evaluation of the
@@ -1695,7 +1710,7 @@ class direct_class():
           
           return pressure_dir(tt,vv)
       
-      def dpdt(self, tt, vv):
+      def dpdt(self, tt, vv, prt=False):
           '''
           Computes the derivative dP/dT at a given temperature and volume
           
@@ -1720,7 +1735,20 @@ class direct_class():
           fitder=np.polyder(fit,1)
           k_alpha=np.polyval(fitder, tt)
           
-          return k_alpha
+          if prt:
+             print("(dP/dT)_V = alpha*K = %6.4e GPa/K" % k_alpha)
+          else:
+             return k_alpha
+         
+      def dpdt_p(self, tt, pp):
+          '''
+          Computes the derivative dP/dT at a given temperature and pressure
+          Args:
+              tt: temperature (in K)
+              pp: pressure (in GPa)
+          '''
+          vol=volume_dir(tt, pp)
+          self.dpdt(tt, vol, prt=True)
 
       def integral_dpdt(self, tref, tfin, vol): 
           '''
@@ -3971,6 +3999,10 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
     
     reset_fix()
     
+    if fit:
+       print("\nCoefficients of the fit: (degree: %1i)" % deg) 
+       print(np.array2string(fit_par, formatter={'float_kind': '{0:.3e}'.format})) 
+    
     if out & fit:
         return fit_par, fit_par_v
 
@@ -5344,7 +5376,7 @@ def alpha_dir_serie(tmin, tmax, nt, pp, fit=True, prt=True):
        fmt1="{:5.1f}"
        fmt2="{:4.2e}"
        t_l=list(fmt1.format(it) for it in t_l)
-       alpha_l=list(fmt2.format(ia) for ia in alpha_l)
+       alpha_l=list(fmt2(ia) for ia in alpha_l)
        serie=(t_l, alpha_l)
        df=pd.DataFrame(serie,index=['Temp.','   Alpha  '])
        df=df.T
@@ -6405,7 +6437,7 @@ def eos_temp(tt,prt=True,update=False,kp_only=False, save=False, \
         print(" %5.3f   %5.2f" % (vp_i, pv_i))
 
 
-def eosfit_dir(file_name, unit=False): 
+def eosfit_dir(file_name, pmax=0., unit=False): 
     """
     Writes a PVT file to be used with EosFit
     Temperature data are in the temperature_list list
@@ -6463,7 +6495,10 @@ def eosfit_dir(file_name, unit=False):
                 vi=vi*1e-24*avo/zu
             if pi >=-0.02:
                pvt=np.array([pi, vi, ti])
-               eos_data=np.append(eos_data,pvt)
+               if (pmax > 0.1) & (pi <= pmax):                   
+                   eos_data=np.append(eos_data,pvt)
+               elif pmax < 0.1:
+                    eos_data=np.append(eos_data,pvt)
     
     iraw=int(eos_data.size/3)
     eosdata=np.reshape(eos_data,(iraw,3))
@@ -7417,7 +7452,7 @@ def gruneisen(vol, method='poly',plot=True):
     if not plot:
        return grun_list
    
-def gruneisen_therm(tt,pp,ex_data=False,prt=True):
+def gruneisen_therm(tt,pp,ex_data=False, dir=False, prt=True):
     
     """
     Gruneisen parameter: alpha*K_T*V/Cv
@@ -7425,6 +7460,8 @@ def gruneisen_therm(tt,pp,ex_data=False,prt=True):
     Args:
         tt:  temperature
         pp:  pressure
+        dir: if True, the direct.dpdt function that returns the product
+             k*alpha is used (default False)
         ex_data: if True, values of volume, constant volume specific heat,
                  thermal expansion, bulk modulus and gamma are returned
                  (default False)
@@ -7433,29 +7470,39 @@ def gruneisen_therm(tt,pp,ex_data=False,prt=True):
     Note:
         The required bulk modulus (Reuss definition) is computed by
         the bulk_modulus_p function, with the noeos parameter set to
-        True.        
+        True. Thermal expansion is evaluated by the function 'compute' of the 
+        thermal_expansion class, with the method 'k_alpha_dir'; Cv is from
+        the direct.cv method.
     """
+    cv=direct.cv(tt, pp)
        
-    k, vol=bulk_modulus_p(tt,pp,noeos=True)
-
-    ent,cv=entropy_v(tt,vol)
-    alpha=alpha_dir(tt, pp)
-    
-    volume=(vol/zu)*avo*1e-30      # volume of a mole in m^3       
-        
-    grun_th=alpha*volume*k*1e9/cv
+    if dir:
+       vol=volume_dir(tt,pp)
+       ka=direct.dpdt(tt, vol, prt=False)
+       volume=(vol/zu)*avo*1e-30
+       grun_th=ka*volume*1e9/cv
+    else:   
+       k, vol=bulk_modulus_p(tt,pp,noeos=True)   
+       alpha=thermal_expansion.compute(tt, pp)  
+       volume=(vol/zu)*avo*1e-30     
+       grun_th=alpha*volume*k*1e9/cv
     
     if prt:
       print("\nGruneisen parameter (adimensional): %6.3f\n" % grun_th)
-      print("Thermal expansion: %6.2e (K^-1)" % alpha)
-      print("Bulk modulus: %6.2f (GPa)" % k)
+      if not dir:
+         print("Thermal expansion: %6.2e (K^-1)" % alpha)
+         print("Bulk modulus: %6.2f (GPa)" % k)
+      else:
+         print("K*alpha: %6.4e GPa/K" % ka)
       print("Specific heat at constant volume: %6.2f (J/mol K)" % cv) 
     
-    if ex_data:
+    if ex_data & (not dir):
        return vol,cv,alpha,k,grun_th
+    if ex_data & dir:
+       return vol, cv, ka, grun_th
    
    
-def q_parameter(pfin=5, temp=298.15, npoint=12):
+def q_parameter(pfin=5, temp=298.15, npoint=12, dir=False):
     
     """
     Calculation of the parameter q of the equation 
@@ -7470,18 +7517,20 @@ def q_parameter(pfin=5, temp=298.15, npoint=12):
         pfin: final (maximum) pressure (GPa; default 5)
         temp: temperature (K; default 298.15)
         npoint: number of points in the P range (default 12)
+        dir: see the help of the gruneisen_therm function (default False) 
     """
     
     p_list=np.linspace(0., pfin, npoint)
-    res=list(gruneisen_therm(temp, ip, ex_data=True, prt=False) for ip in p_list)
+    res=list(gruneisen_therm(temp, ip, ex_data=True, dir=dir, prt=False) for ip in p_list)
     res=np.array(res)
     v_list=res[:,0]
-    gr_list=res[:,4]
-    k_list=res[:,3]
+    if not dir:
+       gr_list=res[:,4]
+    else:
+       gr_list=res[:,3]
     
     r_gr=gr_list/gr_list[0]
     r_v=v_list/v_list[0]
-    r_k=k_list/k_list[0]
     
     qini=[1]
     
