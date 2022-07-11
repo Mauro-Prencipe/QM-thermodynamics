@@ -6450,8 +6450,9 @@ def eosfit_dir(file_name, pmax=0., unit=False):
               in the pressure (which is determined by the input volume
               range).
         
-    Example:
+    Examples:
        >>> eosfit_dir("myfile.dat")
+       >>> eosfit_dir("myfile.dat", pmax=10., unit=True)
  
     enclose the file name in quotes.
     
