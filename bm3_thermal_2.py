@@ -1479,7 +1479,7 @@ class disp_class():
     
         self.p_list=p_list.reshape(pterm,2)
         
-        x0=np.ones(pterm)
+        x0=np.zeros(pterm)
         
         t_list=np.linspace(min_t,max_t,nt)
         v_list=self.vol
@@ -6445,7 +6445,11 @@ def eosfit_dir(file_name, pmax=0., unit=False):
     Args: 
         file_name: name of the output file
         unit: if unit=True, volumes are converted in cm^3/mol
-    
+        pmax: if not 0., maximum pressure in the computed dataset
+              (in GPa); if pmax=0. (default) there is no limit
+              in the pressure (which is determined by the input volume
+              range).
+        
     Example:
        >>> eosfit_dir("myfile.dat")
  
