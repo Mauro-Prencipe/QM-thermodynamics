@@ -22,4 +22,3 @@ The *pyrope* folder contains the input files to run the program on a selected ex
 The input description, explanations and tutorials can be found [here](https://qm-thermodynamics.readthedocs.io/en/main/) 
 
 [![DOI](https://zenodo.org/badge/352697078.svg)](https://zenodo.org/badge/latestdoi/352697078)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5061097.svg)](https://zenodo.org/badge/latestdoi/5061097)
