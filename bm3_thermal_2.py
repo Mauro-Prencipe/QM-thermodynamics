@@ -3050,9 +3050,6 @@ def pressure_dir(tt,vv):
         vv: volume (A^3)
     """
     
-    tt=float(tt)
-    vv=float(vv) 
-    
     deg=pr.degree_v
     
     if not vd.flag:
@@ -3313,8 +3310,6 @@ def volume_from_F(tt, shrink=10., npoints=60, debug=False):
     delta=volume_ctrl.delta
     d2=delta/2.
     
-    tt=float(tt)
-    
     vini=volume_dir(tt,0)
     if volume_F_ctrl.get_flag():
        shift=volume_F_ctrl.get_shift()
@@ -3562,8 +3557,7 @@ def bulk_dir(tt,prt=False, out=False, pmax=0., npmax=12, **kwargs):
     flag_volume_max.value=False
     
     tt=float(tt)
-    
-    
+        
     l_arg=list(kwargs.items())
     fixpar=False
     flag_serie=False
@@ -3872,8 +3866,8 @@ def bulk_modulus_p(tt,pp,noeos=False,prt=False,**kwargs):
     (if noeos=False) Kp can be kept fixed by setting fix=Kp > 0.1
     """
     
-    tt=float(tt)
-    pp=float(pp)
+#    tt=float(tt)
+#    pp=float(pp)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4036,9 +4030,6 @@ def bulk_modulus_adiabat(tt,pp,noeos=False, prt=True,**kwargs):
     Since the computation of pressure requires the bm3_tem function, 
     Kp can be kept fixed by setting fix=Kp > 0.1  
     """
-    
-    tt=float(tt)
-    pp=float(pp)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4492,11 +4483,7 @@ def free_fit_vt(tt,vv):
     Args:
         tt: temperature (K)
         vv: volume (A^3)
-    """
-    
-    tt=float(tt)
-    vv=float(vv)
-    
+    """    
     e_static=v_bm3(vv,*info.popt)
     enz=0.
     fth=0
@@ -4592,8 +4579,6 @@ def eos_temp_range(vmin_list, vmax_list, npp, temp):
              
 def g_vt_dir(tt,pp,**kwargs):
     
-    tt=float(tt)
-    pp=float(pp)
     
     flag_volume_max.value=False
     
@@ -4654,8 +4639,8 @@ def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
         output is printed and the function provides no output
     """
     
-    tt=float(tt)
-    vv=float(vv)
+#    tt=float(tt)
+#    vv=float(vv)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4740,8 +4725,8 @@ def entropy_dir_v(tt, vv, prt=False):
         mode.     
     """
     
-    tt=float(tt)
-    vv=float(vv)
+#    tt=float(tt)
+#    vv=float(vv)
     
     if disp.flag:
        if not disp.thermo_vt_flag:
@@ -4801,8 +4786,8 @@ def entropy_p(tt,pp,plot=False,prt=True, dir=False, **kwargs):
         a formatted output is printed and the function returns None
     """ 
     
-    tt=float(tt)
-    pp=float(pp)
+#    tt=float(tt)
+#    pp=float(pp)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4870,8 +4855,8 @@ def thermal_exp_v(tt,vv,plot=False,**kwargs):
         function of T is plotted, in the range t_range         
     """
     
-    tt=float(tt)
-    vv=float(vv)
+#    tt=float(tt)
+#    vv=float(vv)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4945,8 +4930,8 @@ def thermal_exp_p(tt,pp,plot=False,exit=False,**kwargs):
         see help for the thermal_exp_v function  
     """
     
-    tt=float(tt)
-    pp=float(pp)
+#    tt=float(tt)
+#    pp=float(pp)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -5045,7 +5030,7 @@ def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,HTlim=0.,\
           print("\nWarning: no polynomium defined for fitting alpha's")
           print("Use ALPHA keyword in input file")
           return None
-       coef_ini=np.ones(lpow_a)
+       coef_ini=np.zeros(lpow_a)
        alpha_fit, alpha_cov=curve_fit(alpha_fun,t_range,alpha_serie,p0=coef_ini)
        
        tvfin=tfin
@@ -5076,8 +5061,6 @@ def alpha_fun(tt,*coef):
     the fit obtained with the alpha_serie function
     """
     
-    tt=float(tt)
-    
     alpha=0.
     jc=0
     while jc<lpow_a:
@@ -5092,9 +5075,6 @@ def dalpha_dt(tt,pp,**kwargs):
     Outputs the derivative of alpha with respect to T
     at constant pressure. It is used by dCp_dP
     """
-    
-    tt=float(tt)
-    pp=float(pp)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -5136,9 +5116,6 @@ def alpha_dir(tt,pp):
         The calculation of the volume at a ginen temperature is done
         by the volume_dir function
     """
-    
-    tt=float(tt)
-    pp=float(pp)
     
     dt=delta_ctrl.get_delta()
     nt=delta_ctrl.get_nump()
@@ -5250,7 +5227,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
               reset_fix()
            
            for it in t_list:
-               ith=thermal_exp_p(it,0., exit=True)[0]
+               ith=thermal_exp_p(it,0, exit=True)[0]
                therm_list=np.append(therm_list, ith)
                
         if flag[2]:
@@ -5451,8 +5428,6 @@ def alpha_dir_fun(tt,*coef):
     the fit obtained with the alpha_dir_serie function
     """
     
-    tt=float(tt)
-    
     alpha=0.
     jc=0
     while jc<lpow_a:
@@ -5475,9 +5450,6 @@ def alpha_dir_from_dpdt(tt, pp, prt=False):
         prt: is True, alpha, K and V are printed; otherwise unformatted values
              are returned (default False)
     """
-    
-    tt=float(tt)
-    pp=float(pp)
     
     bulk, vol=bulk_modulus_p(tt, pp, noeos=True, prt=False)
 
@@ -5616,9 +5588,6 @@ def cp_dir(tt,pp, prt=False):
         prt: if True a detailed output is printed
     """
     
-    tt=float(tt)
-    pp=float(pp)
-    
     if disp.flag:
        if not disp.thermo_vt_flag:
           disp.thermo_vt_on()
@@ -5663,9 +5632,6 @@ def cp(tt,pp,plot=False,prt=False,dul=False,**kwargs):
         Cp, Cv (J/mol K), Cp/Cv, alpha (K^-1), K=K0+K'P (GPa) 
     """
     
-    tt=float(tt)
-    pp=float(pp)
-    
     l_arg=list(kwargs.items())
     fixpar=False
     for karg_i in l_arg:
@@ -5699,8 +5665,6 @@ def cp_fun(tt,*coef):
     from the fit Cp(T) performed with the cp_serie function  
     """
     
-    tt=float(tt)
-    
     cp=0.
     jc=0
     while jc<lpow:
@@ -5723,9 +5687,6 @@ def dcp_dp(tt,pp,**kwargs):
         (dCp/dP)_T = -VT[alpha^2 + (d alpha/dT)_P]
         It is **strongly** advised to keep Kp fixed (Kp=fix)
     """
-    
-    tt=float(tt)
-    pp=float(pp)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -6022,7 +5983,6 @@ def gamma_estim(tini,tfin,npoint=12,g_deg=2):
 
 def gamma_calc(tt,pol):
     
-    tt=float(tt)
     return np.polyval(pol,tt)
     
 
@@ -6120,9 +6080,7 @@ def free_v(tt,vol,**kwargs):
              possibly chosen by set_fix) the optimization of kp in BM3; 
              if fix > 0.1, kp = fix and it is not optimized.
     """
-    
-    tt=float(tt)
-    vol=float(vol)
+
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -6178,9 +6136,6 @@ def gibbs_p(tt,pp,**kwargs):
     return gibbs_pt
 
 def gibbs_tp(tt,pp,**kwargs):
-    
-    tt=float(tt)
-    pp=float(pp)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -6685,8 +6640,8 @@ def new_volume(tt,pr,**kwargs):
         fix (optional): used to keep Kp fixed 
     """
     
-    tt=float(tt)
-    pr=float(pr)
+#    tt=float(tt)
+#    pr=float(pr)
     
     l_arg=list(kwargs.items())
     fixpar=False
@@ -6753,8 +6708,6 @@ def freq_v_fun(ifr,vv):
     Outputs the frequency of the "ifr" mode as a function of volume
     by using the polynomial fit computed with freq_v_fit    
     """
-    
-    vv=float(vv)
     
     if not flag_poly.flag_stack:
         print("Polynomial stack not present; use set_poly to create it")
@@ -7283,8 +7236,6 @@ def check_poly_list(list_of_modes):
     
 def pressure_freq_list(tt,ifr,**kwargs):
     
-    tt=float(tt)
-    
     if (not flag_poly.flag) and (not flag_spline.flag):
         msg1='** Error ** This function can be used only in connection with '
         msg2='a fitting of frequencies;\n'
@@ -7579,9 +7530,6 @@ def gruneisen_therm(tt,pp,ex_data=False, dir=False, prt=True):
         the direct.cv method.
     """
     
-    tt=float(tt)
-    pp=float(pp)
-    
     cv=direct.cv(tt, pp)
        
     if dir:
@@ -7720,7 +7668,7 @@ def delta_T_func(rv, d_t):
     return rv**d_t    
     
     
-def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000,degree=1,g_deg=1, ex=False):
+def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False):
     
     print("\n---- High temperature estimation of the thermal expansion coefficient ----\n")
     v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
@@ -7751,23 +7699,26 @@ def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000,degree=1,g_deg=1, ex=False):
     else:
        pol=gamma_fit.pol 
        print("Gamma(V) fit from already stored data")
-       
+    
     grun_list=np.polyval(pol,t_list)
+        
 
-    fact_list=1e-9*grun_list/(k_list*v_list)
+    fact_list=grun_list/(k_list*v_list)
     f_coef=np.polyfit(t_list,fact_list,degree)
     fact_calc=np.polyval(f_coef,t_list)
+    
+    print(fact_calc, fact_list)
             
     plt.figure()
-    plt.plot(t_list,fact_list*1e9,"*")    
-    plt.plot(t_list,fact_calc*1e9)
+    plt.plot(t_list,fact_list, "*")    
+    plt.plot(t_list,fact_calc)
     plt.xlabel("Temperature (K)")
     plt.ylabel("J^-1")
     plt.title("Gamma/VK_T")
     plt.show()   
     
     fact_lim=np.polyval(f_coef,HTlim)
-    alpha_limit=dp_limit*fact_lim   
+    alpha_limit=dp_limit*fact_lim 
     
     print("\nGamma/VK fit of degree %1i" % degree)
     print("Alpha constrained at the high temperature limit: %6.2e K^-1" % alpha_limit)
@@ -7824,8 +7775,6 @@ def pressure_phonon_mode(ifr,tt,vol,method='poly'):
         temperature (tt) and volume (vv)
     
     """
-    tt=float(tt)
-    vol=float(vol)
     
     if method=='poly' and not flag_poly.flag_stack:
         print("Polynomial stack not present; use set_poly to create")
@@ -7860,8 +7809,6 @@ def pressure_phonon(tt,vol,method='poly',plot=True, prt=True):
         If plot=False, outputs the vibrational pressure of all the modes 
         (in GPa) at the selected temperature (tt) and volume (vv). 
     """
-    tt=float(tt)
-    vol=float(vol)
     
     if method=='poly' and not flag_poly.flag_stack:
         print("Polynomial stack not present; use set_poly to create")
@@ -7923,8 +7870,6 @@ def pressure_phonon_f_range(tt, pp=0, prt=True):
         >>> pressure_phonon_f_range(298)
     """ 
     
-    tt=float(tt)
-    pp=float(pp)
     
     if not flag_poly.flag_stack:
        print("At present, the function requires the polynomial fits of")
@@ -8356,8 +8301,6 @@ def upload_mineral_2(tmin,tmax,points=12,HT_lim=0., t_max=0., g_deg=1, model=1, 
 
 def reaction_dir(tt,pp,mqm,prod_spec, prod_coef, rea_spec, rea_coef):
     
-    tt=float(tt)
-    pp=float(pp)
     
     mv0=eval(mqm+'.v0')
     mg0=eval(mqm+'.g0')
@@ -8382,7 +8325,6 @@ def reaction_dir(tt,pp,mqm,prod_spec, prod_coef, rea_spec, rea_coef):
     
 def pressure_react_dir(tt,mqm,prod_spec, prod_coef, rea_spec, rea_coef):
 
-    tt=float(tt)
     
     fpr=lambda pp: (reaction_dir(tt,pp,mqm, \
                     prod_spec, prod_coef, rea_spec, rea_coef))**2
@@ -8622,14 +8564,11 @@ def einstein_t(tini, tfin, npoint, HT_lim=3000,dul=False,model=1):
        return ein_fit           
 
 def einstein_fun(tt,eps):
-    
-    tt=float(tt)
-    
+      
     return apfu*3*avo*kb*((eps/tt)**2)*np.exp(eps/tt)/((np.exp(eps/tt)-1)**2)
 
 def einstein_2_fun(tt,eps1,eps2):
     
-    tt=float(tt)
     
     f1=apfu*3*avo*kb/2.
     f2=((eps1/tt)**2)*np.exp(eps1/tt)/((np.exp(eps1/tt)-1)**2)
@@ -8827,9 +8766,6 @@ def anharm_pressure_vt(mode,vv,tt,deg=2,dv=2,prt=True):
        dv:   V range (A^3) for the calculation of the F(V) function (default: 2)
        prt:  print formatted result (default: True)
     """
-    
-    tt=float(tt)
-    vv=float(vv)
     
     if not anharm.flag:
        print("Anharmonic correction is off. No calculation is done")
