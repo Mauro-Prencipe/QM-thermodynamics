@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.5.1 10/06/2022
+# Version 2.6.5 15/07/2022
 #
 
 # Comment the following three lines to produce the documentation 
@@ -7689,11 +7689,12 @@ def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False)
     alp_list=np.array([])
     for it in t_list:
         iv,icv,ialp,ik,igr=gruneisen_therm(it,0,ex_data=True,prt=False)        
+        iv=iv*avo*1e-30/zu
         v_list=np.append(v_list,iv)
         cv_list=np.append(cv_list,icv)
         k_list=np.append(k_list,ik)
         alp_list=np.append(alp_list,ialp)
- 
+    
     if not gamma_fit.flag:
        pol=gamma_estim(tini,tfin,npoint,g_deg)
     else:
@@ -7703,11 +7704,9 @@ def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False)
     grun_list=np.polyval(pol,t_list)
         
 
-    fact_list=grun_list/(k_list*v_list)
+    fact_list=1e-9*grun_list/(k_list*v_list)
     f_coef=np.polyfit(t_list,fact_list,degree)
     fact_calc=np.polyval(f_coef,t_list)
-    
-    print(fact_calc, fact_list)
             
     plt.figure()
     plt.plot(t_list,fact_list, "*")    
@@ -9055,7 +9054,7 @@ def main():
     global plot, direct, zp, ac_approx
     
     ctime=datetime.datetime.now()
-    version="2.5.1 - 10/06/2022"
+    version="2.6.5 - 15/07/2022"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
