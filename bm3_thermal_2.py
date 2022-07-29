@@ -4954,18 +4954,46 @@ def thermal_exp_p(tt,pp,plot=False,exit=False,**kwargs):
        print("Volume:              %8.4f A^3\n" % vol)
 
 
-def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,HTlim=0.,\
-                degree=1, save='', g_deg=1, tex=False, title=True, **kwargs):
+def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,HTlim=0., g_fit=True,\
+                degree=1, save='', g_deg=1, tex=False, title=True, dir=False, **kwargs):
     
     """
     Thermal expansion in a temperature range, at a given pressure (pp), 
     and (optional) fit with a polynomium whose powers are specified 
-    in the input.txt file    
+    in the input.txt file  
     
+    Args:
+        tini, tfin, npoint: parameters defining the T-range of the calculation (K)
+        pp: pressure (GPa)
+        prt: if True, a list of alpha values in the T-range is printed
+        fit: a fit of the alpha values as function of T is performed 
+             according to the power serie specified in the input.txt file
+        HTlim: if higher than 0., an extrapolation of alpha to the high 
+               temperature limit (HTlim) is performed.
+        degree: if HTlim > 0.,this is the degree of the polynomial fitting
+                the gamma/VK values as a function of T (default 1), where
+                gamma in the ratio Cp/Cv.
+        g_deg:  if HTlim > 0., this is the degree of the polynomial (default 1)
+                fitting the gamma values (Cp/Cv) as function of T 
+        g_fit:  if False, the Cp/Cv fit (gamma fit) is not performed if it
+                was already perfomed in a previous computation; g_fit=True
+                forces the fit to be recomputed (default True)
+        dir: if True, all direct functions are used in the different steps
+             of the calculation (default False)
+        plot: used for debug purpose if plot=True and dir=False (see the
+               documentation of the thermal_exp_v function) 
+        save, tex, title: have to do with the saving of a figure of the 
+                          function alpha(T)
+                          
     Note:
-        The computation is perfomed by using the thermal_exp_v function
-        that is based on the evaluation of K*alpha product (for details, 
-        see the documentation of the thermal_exp_v function).
+        if dir is False, the computation is perfomed by using the thermal_exp_v 
+        function that is based on the evaluation of K*alpha product by using, in 
+        turn, the bmx_tem function (for details, see the documentation of the 
+        thermal_exp_v function).
+        If dir is True, the bulk_dir function is used, together with the 
+        direct.dpdt function to get the (dP/dT)_v values. This is recommended
+        when phonon dispersion contributions are included (as their are not taken
+        into account by the bmx_tem function)
     """
     l_arg=list(kwargs.items())
     fixpar=False
@@ -4975,19 +5003,27 @@ def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,HTlim=0.,\
           fixpar=True
           
     if HTlim > 0.:
+          if g_fit:
+             gamma_fit.flag=False
           alpha_limit=grun_therm_serie(tini,tfin,npoint=12,HTlim=HTlim,degree=degree,\
-                                     g_deg=g_deg, ex=True)
+                                     g_deg=g_deg, ex=True, dir=dir)
 
     t_range=np.linspace(tini,tfin,npoint)
     alpha_serie=[]
-    for ict in t_range:
-        if fixpar:
-           vol=new_volume(ict,pp,fix=fix_value)
-           [alpha_i,k,pressure]=thermal_exp_v(ict,vol,plot,fix=fix_value)
-        else:
-           vol=new_volume(ict,pp)
-           [alpha_i,k,pressure]=thermal_exp_v(ict,vol,plot)  
-        alpha_serie=np.append(alpha_serie,alpha_i)
+    
+    if not dir:
+       for ict in t_range:
+           if fixpar:
+              vol=new_volume(ict,pp,fix=fix_value)
+              [alpha_i,k,pressure]=thermal_exp_v(ict,vol,plot,fix=fix_value)
+           else:
+              vol=new_volume(ict,pp)
+              [alpha_i,k,pressure]=thermal_exp_v(ict,vol,plot)  
+              alpha_serie=np.append(alpha_serie,alpha_i)
+    else:
+        for ict in t_range:
+            alpha_i=thermal_expansion.compute(ict, pp)
+            alpha_serie=np.append(alpha_serie, alpha_i)
         
     if HTlim > 0:
         t_range=np.append(t_range,HTlim)
@@ -5044,7 +5080,7 @@ def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,HTlim=0.,\
            alpha_value=np.append(alpha_value,alpha_i)
        plt.plot(t_value,alpha_value,"k-")
     if save !='':
-       plt.savefig(fname=path+'/'+save,dpi=dpi, bbox_inches='tight')
+       plt.savefig(fname=path+'/'+save+'.'+ext,dpi=dpi, bbox_inches='tight')
     plt.show()
     latex.off()
     if prt:
@@ -5979,6 +6015,7 @@ def gamma_estim(tini,tfin,npoint=12,g_deg=2):
     plt.title("Gamma (Cp/Cv) as a function of T")
     plt.show()
      
+    print("\nGamma(T) polynomial fit of degree %2i   (g_deg value):" % g_deg)
     return pol
 
 def gamma_calc(tt,pol):
@@ -7535,6 +7572,7 @@ def gruneisen_therm(tt,pp,ex_data=False, dir=False, prt=True):
     if dir:
        vol=volume_dir(tt,pp)
        ka=direct.dpdt(tt, vol, prt=False)
+       alpha=thermal_expansion.compute(tt, pp)
        volume=(vol/zu)*avo*1e-30
        grun_th=ka*volume*1e9/cv
     else:   
@@ -7555,7 +7593,7 @@ def gruneisen_therm(tt,pp,ex_data=False, dir=False, prt=True):
     if ex_data & (not dir):
        return vol,cv,alpha,k,grun_th
     if ex_data & dir:
-       return vol, cv, ka, grun_th
+       return vol, cv, alpha, ka, grun_th
    
    
 def q_parameter(pfin=5., temp=298.15, npoint=12, dir=False):
@@ -7668,14 +7706,29 @@ def delta_T_func(rv, d_t):
     return rv**d_t    
     
     
-def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False):
+def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False, dir=False):
     
     print("\n---- High temperature estimation of the thermal expansion coefficient ----\n")
-    v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
-    set_fix(kp)
-    
-    vol=new_volume(298.15,0.0001)
-    ent, cve=entropy_v(298.15,vol[0])
+
+    reset_fix()
+    if not dir: 
+       v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
+       set_fix(kp)
+    else:
+       v0, k_gpa, kp=bulk_dir(298.15, prt=False, out=True) 
+       print("EoS from bulk_dir calculation")
+       print("V0: %6.3f A^3" % v0)
+       print("K0: %6.2f GPa" % k_gpa)
+       print("Kp: %6.2f" % kp)
+       
+    if not dir:
+       vol=new_volume(298.15,0.0001)
+       ent, cve=entropy_v(298.15,vol[0])
+    else:
+       vol=volume_dir(298.15, 0.0001) 
+       ent=direct.entropy(298.15, 0.0001)
+#       cve=direct.cv(298.15, 0.0001)      
+        
     dp_limit=apfu*3*avo*kb                  # Dulong Petit limit
     emp=10636/(ent/apfu+6.44)               # Empirical Einstein T
     
@@ -7688,8 +7741,11 @@ def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False)
     k_list=np.array([])
     alp_list=np.array([])
     for it in t_list:
-        iv,icv,ialp,ik,igr=gruneisen_therm(it,0,ex_data=True,prt=False)        
+        iv,icv,ialp,ik,igr=gruneisen_therm(it,0,ex_data=True, dir=dir, prt=False)          
         iv=iv*avo*1e-30/zu
+        if dir:
+           ik=ik/ialp
+           
         v_list=np.append(v_list,iv)
         cv_list=np.append(cv_list,icv)
         k_list=np.append(k_list,ik)
@@ -7703,11 +7759,10 @@ def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False)
     
     grun_list=np.polyval(pol,t_list)
         
-
     fact_list=1e-9*grun_list/(k_list*v_list)
     f_coef=np.polyfit(t_list,fact_list,degree)
     fact_calc=np.polyval(f_coef,t_list)
-            
+         
     plt.figure()
     plt.plot(t_list,fact_list, "*")    
     plt.plot(t_list,fact_calc)
