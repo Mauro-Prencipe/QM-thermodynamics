@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.6.5 15/07/2022
+# Version 2.6.6 29/07/2022
 #
 
 # Comment the following three lines to produce the documentation 
@@ -5995,12 +5995,17 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
     else: 
         return None
     
-def gamma_estim(tini,tfin,npoint=12,g_deg=2):
+def gamma_estim(tini,tfin,npoint=12,g_deg=2, dir=False):
     t_list=np.linspace(tini,tfin,npoint)
     gamma_list=np.array([])
     for it in t_list:
-       dum1,dum2,gamma=cp(it,0,dul=True)
-       gam=gamma[0]
+       if not dir:
+          dum1,dum2,gamma=cp(it,0,dul=True)
+          gam=gamma[0]
+       else:
+          cpd=direct.cp(it, 0.)
+          cvd=direct.cv(it, 0.)
+          gam=cpd/cvd  
        gamma_list=np.append(gamma_list,gam)
     pol=np.polyfit(t_list,gamma_list,g_deg)
     gamma_fit.upload(g_deg,pol)
@@ -7752,7 +7757,10 @@ def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False,
         alp_list=np.append(alp_list,ialp)
     
     if not gamma_fit.flag:
-       pol=gamma_estim(tini,tfin,npoint,g_deg)
+       if dir:           
+          pol=gamma_estim(tini,tfin,npoint,g_deg, dir=True)
+       else:
+          pol=gamma_estim(tini,tfin,npoint,g_deg, dir=False) 
     else:
        pol=gamma_fit.pol 
        print("Gamma(V) fit from already stored data")
@@ -9109,7 +9117,7 @@ def main():
     global plot, direct, zp, ac_approx
     
     ctime=datetime.datetime.now()
-    version="2.6.5 - 15/07/2022"
+    version="2.6.6 - 29/07/2022"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
