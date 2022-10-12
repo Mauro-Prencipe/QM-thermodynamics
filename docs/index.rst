@@ -96,8 +96,8 @@ site and, from there, compiled and interactively used on Binder (click on the *E
    
    download
    
-.. image:: https://zenodo.org/badge/352697078.svg
-   :target: https://zenodo.org/badge/latestdoi/352697078
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.6821531.svg
+   :target: https://doi.org/10.5281/zenodo.6821531
 
 * :ref:`genindex`
 * :ref:`search`
