@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.6.6 29/07/2022
+# Version 2.8.0 12/10/2022
 #
 
 # Comment the following three lines to produce the documentation 
@@ -11,6 +11,9 @@
 # get_ipython().magic('cls')
 # get_ipython().magic('reset -sf')
 
+# Set to True to compile an executable version
+exe_flag=False
+
 import datetime
 import os  
 import sys  
@@ -18,8 +21,14 @@ import scipy
 import warnings
 import numpy as np
 import matplotlib as mpl
+
+if exe_flag:
+   mpl.use('Qt5Agg')
+   
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick 
+
 # from matplotlib import rc
 
 import pandas as pd
@@ -35,7 +44,7 @@ from mineral_data import mineral, load_database, equilib, reaction,\
      pressure_react, export, field, import_database, name_list
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
      mao, fmao, stv, cc, arag, jeff, jeff_fe, jeff_fe3p, jeff_feb
-    
+
 import_database()
 
 mpl.rcParams['figure.dpi']= 80
@@ -255,6 +264,7 @@ class data_info():
         if anharm.flag:
             print("\nAnharmonic correction for mode(s) N. %s" % str(anharm.mode).strip('[]'))
             print("Brillouin flag(s): %s" % str(anharm.brill).strip('[]'))
+            print("Anharmonic F(V,T) fit - degree V: %2i, degree T: %2i" % (anharm.vdeg, anharm.tdeg))
             
         if disp.flag:
             print("\n---------------  Phonon dispersion  --------------------")
@@ -516,7 +526,7 @@ class kieffer_class():
         plt.xlabel("Temperature (K)")
         plt.ylabel("F free energy (J/mol apfu)")
         plt.title("Free energy from acustic modes (Kieffer model)")
-        plt.show()
+        plt.show(block=False)
         
 class acoustic_approx_class():
     """
@@ -1280,7 +1290,7 @@ class disp_class():
         plt.xlabel("Volume (A^3)")
         plt.ylabel("Frequency (cm^-1)")
         plt.title(tlt)
-        plt.show()
+        plt.show(block=False)
         
     def check_multi(self, fr_l):
         """
@@ -1400,7 +1410,7 @@ class disp_class():
               plt.xlabel("T (K)")
               plt.ylabel("F (a.u.)")
               plt.title("Helmholtz free energy from off-centered modes")
-              plt.show()    
+              plt.show(block=False)    
   
     def free_fit_ctrl(self, min_t=10., t_only_deg=6, degree_v=4, degree_t=4, nt=24, fit=True, disp=True):
         """
@@ -1548,7 +1558,7 @@ class disp_class():
             ax.set_xlabel("Temperature", labelpad=7)
             ax.set_ylabel("Volume", labelpad=7)
             ax.set_zlabel('F(T,V)', labelpad=8)
-            plt.show()
+            plt.show(block=False)
         
     def free_vt_func(self,data,*par):
             
@@ -1766,7 +1776,7 @@ class direct_class():
           
           return integ
       
-      def entropy(self,tt,pp=0):
+      def entropy(self,tt,pp=0, prt=False):
           '''
           Computes the entropy at a given temperature an pressure
           
@@ -1777,7 +1787,10 @@ class direct_class():
           
           volume=volume_dir(tt,pp)
           ent,cv = entropy_dir_v(tt, volume)
-          return ent
+          if prt:
+             print("Entropy: %6.2f J/K mol" % ent) 
+          else:    
+             return ent
       
       def cv(self, tt,pp=0):
           '''
@@ -1915,7 +1928,7 @@ class thermal_expansion_class():
       def __init__(self):
           self.method='k_alpha_dir'
           self.nt=12
-          self.fix=0
+          self.fix=0.
           self.fit=False
           self.tex=False
           self.save=False
@@ -1939,7 +1952,9 @@ class thermal_expansion_class():
           print("             derivative of P with respect to T, at constant V")
           print("             At any T and P, K and P are directly computed from")
           print("             the Helmholtz free energy function derivatives. No EoS")
-          print("             is involved at any step;")
+          print("             is involved at any step, as the bulk modulus is computed")
+          print("             by means of the bulk_modulus_p function with the noeos=True")
+          print("             option. This is the default method.")
           print("k_alpha_eos: same as k_alpha_dir, but pressures and bulk moduli")
           print("             are computed from an EoS;")
           print("alpha_dir:   the computation is perfomed through the derivative")
@@ -1947,7 +1962,7 @@ class thermal_expansion_class():
           print("             calculated without reference to any EoS, by the function")
           print("             volume_dir.")
           
-      def compute(self, tt, pp, method='default', fix=0, prt=False):
+      def compute(self, tt, pp, method='default', fix=0., prt=False):
           """
           Thermal expansion at a specific temperature and pressure
           
@@ -1963,7 +1978,7 @@ class thermal_expansion_class():
           if method=='default':
              method=self.method
              
-          if fix==0:
+          if fix < 0.01:
              fix=self.fix
              
           if method=='k_alpha_dir':
@@ -2121,13 +2136,498 @@ class thermal_expansion_class():
                      print("")
                   else:          
                      return alpha_fit 
-           
+              
+                 
           else:
              msg="*** Warning: method "+method+" not implemented"
-             print(msg) 
-              
+             print(msg)
+             return
          
+class UploadMineral():
+      """
+      Interface to the upload_mineral function to compute a complete
+      set of thermodynamic parameters to be stored in a Perplex-like database.
+    
+      Several attributes of the class drive the calculation, which can conveniently
+      be set by appropriate method of the class.             
+      """
+     
+      def __init__(self):
+          self.tmin=100.
+          self.tmax=1000.
+          self.points=12
+          self.t_max=1500.
+          self.t_k=0.
+          self.HTlim=0.
+          self.model=1
+          self.g_deg=1
+          self.reuss=False
+          self.alpha_method='k_alpha_dir'
+          self.fix=False
+          self.volc=False
+          self.bdir=False
+          self.noeos=True
+          self.mqm=''
+          self.export=False
+          
+      def set_t_range(self, trange):
+          self.tmin=trange[0]
+          self.tmax=trange[1]
+          self.points=trange[2]
+          
+      def set_t_cp(self, t_max):
+          self.t_max=t_max
+          
+      def set_t_bulk(self, t_k):
+          self.t_k=t_k
+          
+      def set_HTlim(self, HT_lim):
+          self.HTlim=HT_lim
+          
+      def set_model(self, model):
+          self.model=model[0]
+          self.g_deg=model[1]
+         
+      def set_reuss(self, reuss):
+          self.reuss=reuss
+          
+      def set_noeos(self, noeos):
+          self.noeos=noeos
+          
+      def set_bulk_direct(self, bdir):
+          self.bdir=bdir
+          
+      def set_alpha_method(self, adir):
+          self.alpha_method=adir
+          
+      def set_fix(self, fix):
+          self.fix=fix
+                  
+      def set_volc(self, volc):
+          self.volc=volc
+          
+      def set_phase(self, mqm):
+          self.mqm=mqm
+         
+      def set_export(self, exp):
+          self.export=exp
+          
+      def reset(self):
+          self.tmin=100.
+          self.tmax=1000.
+          self.points=12
+          self.t_max=1500.
+          self.t_k=0.
+          self.HTlim=0.
+          self.model=1
+          self.g_deg=1
+          self.reuss=False
+          self.alpha_method='k_alpha_dir'
+          self.fix=False
+          self.volc=False
+          self.bdir=False
+          self.noeos=True
+          self.mqm=''
+          self.export=False
+          
+      def compute(self, **kwargs):
+          """
+          Sets and starts the computation of the thermodynamic parameters.
+          All of the arguments to the method are keyword argument. 
+          If they are omitted, default values are chosen.
+                    
+          Args:
+              trange: minimum, maximum and number of points for the definition 
+                      of temperature range for the fits of K0, Cp and alpha
+              phase:    name of the mineral, as specified in the internal 
+                      database
+              alpha_method: if equal to 'k_alpha_dir', thermal expansion is computed
+                          from the K*alpha product, and K is evaluated from
+                          the bulk_modulus_p function, with the chosen noeos option
+                          (see below). 
+                          If alpha_method='k_alpha_eos', the bulk_modulus in the
+                          K*alpha product is from a V-BM3 EoS function is used 
+                          (default 'alpha_alpha_dir')
+              fix:   if True and if alpha_method='k_alpha_eos', the K' is kept
+                     fixed at the value refined at T=298.15 K (relevant if 
+                     alpha_method=k_alpha_eos; default False)
+              reuss: if True, the bulk_modulus_p_serie function is used
+                     to compute the bulk modulus as a function of T 
+                     (with the chosen noeos option); K0, V0 and Kp are from 
+                     an bulk_dir computation. If False, the function bulk_serie 
+                     is used. (Default False)
+              noeos: relevant if reuss=True or alpha_method='k_alpha_dir' (default True)
+              bdir:  the bulk_dir function is used to compute dK/dT (default True)
+              t_bulk:  maximum temperature for dK/dT fit (relevant if reuss or bdir are True)
+                       if t_bulk=0., t_bulk=tmax (default: 0.)
+              HTlim: Temperature at which the Dulong-Petit limit for Cv
+                     is supposed to be reached (default 0.: no Dulong-Petit
+                     model)
+              t_max: maximum temperature for the power series fit of Cp(T);
+                     if t_max=0. (default), t_max=HTlim. The parameter is
+                     relevant oly if HTlim is not zero.
+              model: Used in the HTlimit estimation of Cv; Einstein model
+                     for Cv(T) with one frequency (default model=[1,g_deg]), or 
+                     with 2 frequencies (model=[2, g_deg]). 
+                     The g_deg parameter is Used in the HTlim estimation of Cp 
+                     (default 1)
+              volc:  if True, V0 is set at the value found in the database
+                     (default: False)
+              export: if True, the computed data are exported in the database
+                      file with the appropriate formatting the the usage
+                      in the Perplex program (default False)
+                     
+          Notes:
+              To set tmin, tmax, points, use the method set_t_range whose argument
+              must be a list [tmin, tmax, points], or the t_range
+              
+              To set the model for the HT extrapolation of the specific heat, use
+              the method set_HTlim whose argument is the list [model, g_deg] 
+              
+              The different parameters can be set by the appropriate 'set' methods
+              implemented for the class. The setting by those methods (before 
+              'compute' is invoked) will change the default values and will be 
+              permanent within the whole working session. If, otherwise, such 
+              parameters are chosen as arguments of the compute method, their original
+              values are recovered immediately at the end of the method.
+              
+          Examples:
+              >>> upl.set_t_bulk(700.)
+              >>> upl.compute(phase='py')
+              
+              >>> upl.compute(t_bulk=700., phase='py')
+          """
+          l_arg=list(kwargs.items())
+          
+          flag_upl.on()
+          
+          org={'trange': [self.tmin, self.tmax, self.points],
+               't_max': self.t_max,
+               't_k': self.t_k,
+               'HTlim': self.HTlim,
+               'model': self.model,
+               'g_deg': self.g_deg,
+               'reuss': self.reuss,
+               'alpha_method': self.alpha_method,
+               'fix': self.fix,
+               'volc': self.volc,
+               'bdir': self.bdir,
+               'noeos': self.noeos,
+               'mqm': self.mqm,
+               'export': self.export}
+                        
+          for karg_i in l_arg:
+             if 'trange' == karg_i[0]:
+                self.set_t_range([karg_i[1][0], karg_i[1][1], karg_i[1][2]])
+             if 't_max' == karg_i[0]:
+                self.set_t_cp(karg_i[1])
+             if 't_bulk' == karg_i[0]:
+                self.set_t_bulk(karg_i[1]) 
+             if 'reuss' == karg_i[0]:
+                self.set_reuss(karg_i[1])
+             if 'noeos' == karg_i[0]:
+                self.set_noeos(karg_i[1])   
+             if 'bdir' == karg_i[0]:
+                self.set_bulk_direct(karg_i[1])             
+             if 'HTlim' == karg_i[0]:
+                self.set_HTlim(karg_i[1])
+             if 'model' == karg_i[0]:
+                self.set_model([karg_i[1][0], karg_i[1][1]])
+             if 'alpha_method' == karg_i[0]:
+                 self.alpha_method=karg_i[1]
+             if 'fix' == karg_i[0]:
+                 self.fix=karg_i[1]
+             if 'volc'==karg_i[0]:
+                 self.set_volc(karg_i[1])
+             if 'phase' == karg_i[0]:
+                self.set_phase(karg_i[1])
+             if 'export' == karg_i[0]:
+                self.set_export(karg_i[1])
+                            
+          if self.reuss & self.bdir:
+             self.set_reuss(False)
+             print("\n*** Warning:\nincompatible Reuss and bulk_dir options")
+             print("bulk_dir computation is chosen")
+             
+          if self.export & (self.mqm==''):
+             self.set_export(False)
+             print("\n*** Warning: No phase defined for export")
+             
+          self.info()
+          self.upload_mineral()
+          
+          if self.export:
+             export(self.mqm)
+          
+          flag_upl.off()
+          
+          for ik in org:
+              exec('self.'+ik+'='+'org[ik]')
+                    
+      def info(self):
+          print("Upload mineral information\n")
+          print("Temperature range: tmin=%5.1f, tmax=%5.1f K;  points=%3i" % \
+                (self.tmin, self.tmax, self.points))
+          if self.HTlim > 0.1:
+             print("\nDebye limit temperature: %5.1f K" % self.HTlim)
+             print("Maximum temperature for Cp fit: %5.1f K" % self.t_max)
+             if self.model==1:
+                print("Einstein model 1")
+             else:
+                print("Einstein model 2")
+                
+             print("Cp/Cv fit of degree %2i" % self.g_deg)
+             
+          if self.t_k > 0.1:
+             print("\nMaximum temperature for dK/dT: %5.1f K" % self.t_k)
+             
+          if self.reuss:
+             print("\nbulk_modulus_p function used to compute dK/dT")
+             print("noeos parameter set to %s" % self.noeos)
+          elif self.bdir:
+              print("\nBulk_dir function is used to compute dK/dT")
+          else:
+             print("\neos_temp and bulk_serie functions are used to compute dK/dT")
+             
+          if self.alpha_method=='k_alpha_dir':
+             print("\nThermal expansion is evaluated from K*alpha product") 
+             print("K is the Reuss bulk modulus computed with the bulk_modulus_p function") 
+             print("with noeos set to %s" % self.noeos)
+          elif self.alpha_method=='k_alpha_eos':
+             print("\nThermal expansion if from the K*alpha product")
+             if self.fix:
+                print("The bulk modulus K is from a V-EoS fit, with K' fixed")
+             else:
+                print("The bulk modulus K is from a V-EoS fit, with K' not fixed") 
+                      
+          if self.volc:
+             print("\nVolume correction is applied on V0")
+          else:
+             print("\nNo volume correction is applied on V0")
+          
+          if self.mqm != '': 
+             print("\nMineral phase: %s\n" % self.mqm)
+          else:
+             print("No phase selected\n")
+                      
+          
+      def quality_of_fit(self, tmax, pmax, mqm, tmin=300., pmin=0., npp=10, nt=10, n_line=10):
+          """
+          Compares unit cell volumes and Gibbs free energies, as functions of 
+          temperature and pressure, that are directly computed within the program,
+          with those derived from the Perplex-Like algorithms from the parameters
+          obtained by the 'compute' method, and stored in the internal database for
+          the specified phase.
+          
+          Args:
+              tmin, tmax, nt: define the temperature range (K)
+              pmin, pmax, np: defini the pressure range (GPa)
+              
+          Notes:
+              Do not use volc=True in the upl.compute method 
+              (for the purpose of making the check of the quality of fit)
 
+              The Delta values are to be intendend as the difference between
+              the direct computation and the Perplex-like one                           
+              
+          Example:
+              >>> upl.compute(phase='jeff')
+              >>> upl.quality_of_fit(1000., 10., 'jeff')
+          """
+          t_list=np.linspace(tmin, tmax, nt)
+          p_list=np.linspace(pmin, pmax, npp)
+          
+          tg, pg=np.meshgrid(t_list, p_list)
+          
+          ntp=nt*npp
+
+          tgl=tg.reshape(ntp)
+          pgl=pg.reshape(ntp)
+
+          dvgl=np.array([])
+          dg=np.array([])
+          for jt, jp in zip(tgl, pgl):
+              iv=volume_dir(jt, jp)
+              g_tp_dir=g_vt_dir(jt, jp, g0=eval(mqm).g0)
+              g_tp=eval(mqm).g_tp(jt, jp)
+              iv2=eval(mqm).volume_p(jt, jp)
+              iv2=volume_conversion(iv2, atojb=False, prt=False)
+              dg_i=g_tp_dir-g_tp
+              dvgl_i=iv-iv2
+              dvgl=np.append(dvgl, dvgl_i)
+              dg=np.append(dg, dg_i)
+                            
+          
+          dvgl=dvgl.reshape(nt, npp)
+          dg=dg.reshape(nt, npp)
+          
+          adg=np.abs(dg)
+          maxdg=np.max(adg)
+          ipos=np.where(adg==maxdg)
+          tp = list(zip(ipos[0], ipos[1]))
+          mt=tg[tp[0][0], tp[0][1]]
+          mp=pg[tp[0][0], tp[0][1]] 
+            
+          g_ref=eval(mqm).g_tp(mt, mp)
+         
+          percentage=np.abs(maxdg*100/g_ref)          
+                   
+          plt.figure()
+          con=plt.contour(tg,pg,dvgl,n_line, colors='k')
+          plt.clabel(con, inline=True, fontsize=10)
+          plt.xlabel("T (K)")
+          plt.ylabel("P (GPa)")
+          plt.title("Delta V (A^3) contours")
+          plt.show()
+          
+          plt.figure()
+          con=plt.contour(tg,pg,dg,n_line, colors='k')
+          plt.clabel(con, inline=True, fontsize=10)
+          plt.xlabel("T (K)")
+          plt.ylabel("P (GPa)")
+          plt.title("Delta G (j/mol) contours")
+          plt.show()
+          
+          print("Delta G max (absolute value): %6.3f J/mol,  for T = %5.1f K and P = %4.1f GPa" %\
+                (maxdg, mt, mp))
+          print("Maximum percentage error on G: %5.3f%%" % percentage)
+      
+      def upload_mineral(self):
+                   
+          mqm=self.mqm
+          
+          flag_int=False
+          if f_fix.flag:
+              kp_original=f_fix.value
+              flag_int=True
+              reset_fix()
+                    
+          if not volume_correction.flag:
+             if mqm !='':
+                volume_correction.set_volume(eval(mqm).v0)
+                volume_correction.on()                 
+          
+          if mqm != '':
+             g0=eval(mqm).g0
+          if self.t_k < 0.1: 
+             self.set_t_bulk(self.tmax)
+       
+          t_list_bulk=np.linspace(298.15, self.t_k, self.points)
+          t_list=np.linspace(self.tmin, self.tmax, self.points)
+          
+          if upl.reuss:                  
+             v0, k_gpa, kp=bulk_dir(298.15,prt=False,out=True)
+             xx=list(bulk_modulus_p(tt, 0., noeos=upl.noeos) for tt in t_list_bulk)
+             xx=np.array(xx)
+             v_list=xx[:,1] 
+             k_list=xx[:,0]    
+             
+          if upl.bdir:
+             v0, k_gpa, kp=bulk_dir(298.15,prt=False,out=True)
+             set_fix(kp)
+             xx=list(bulk_dir(tt, out=True, prt=False) for tt in t_list_bulk)
+             xx=np.array(xx)
+             v_list=xx[:,0]
+             k_list=xx[:,1]
+             reset_fix()               
+              
+          if upl.reuss or upl.bdir:    
+             fit_k=np.polyfit(t_list_bulk,k_list,1)
+             dkt=fit_k[0]
+             print("\nBulk modulus and K' in standard conditions (from bulk_dir function) and dK/dT")
+             print("%7.2f GPa, %4.2f, %6.4f GPa/K" % (k_gpa, kp, dkt))
+              
+             t_plot=np.linspace(298.15, self.t_k, self.points*10)
+             k_plot=np.polyval(fit_k, t_plot)
+              
+             plt.figure()
+             plt.plot(t_list_bulk, k_list, "k*")
+             plt.plot(t_plot, k_plot, "k-")
+             plt.xlabel("T (K)")
+             plt.ylabel("K (GPa)")
+             plt.show()
+              
+          if not(self.reuss | self.bdir):
+             v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
+             set_fix(kp)
+             fit_b=bulk_serie(298.15, self.t_k, 8, degree=1, update=True)
+             dkt=fit_b[0]
+          
+          alpha_list=np.array([])
+                    
+          if self.alpha_method == 'k_alpha_dir': 
+             volume_ctrl.set_shift(0.)
+             
+          myfix=0.
+          if self.fix: myfix=kp 
+          
+          for it in t_list:
+              ai=thermal_expansion.compute(it, 0., method=self.alpha_method, fix=myfix)
+              alpha_list=np.append(alpha_list, ai)
+                                     
+          coef_ini=np.ones(lpow_a)
+          fit_al, alpha_cov=curve_fit(alpha_dir_fun,t_list,alpha_list,p0=coef_ini)
+              
+          t_plot=np.linspace(self.tmin, self.tmax, self.points*10)
+          alpha_plot=alpha_dir_fun(t_plot,*fit_al)
+              
+          plt.figure()
+          plt.plot(t_plot, alpha_plot, "k-", label="Fit")
+          plt.plot(t_list, alpha_list, "k*", label="Actual values")
+          plt.legend(frameon=False)
+          plt.title("Thermal expansion")
+          plt.xlabel("T (K)")
+          plt.ylabel("Alpha (K^-1)")
+          plt.show(block=False)              
+              
+          
+          if not upl.volc:
+              v0=v0*1e-30*1e5*avo/zu 
+          else:
+              if mqm !='':
+                 v0=volume_correction.v0_init
+              
+          ex_internal_flag=False
+          if exclude.flag & (not anharm.flag):
+              exclude.restore()
+              ex_internal_flag=True
+              print("\nWarning ** Excluded modes restored in order\nto "
+                    "correctly compute entropy and specific heat")
+              print("At the end of computation, exclusion of modes "
+                    "will be rectivated")
+           
+          if upl.reuss:
+              volume_ctrl.set_shift(0.)
+              vol=volume_dir(298.15,0)
+              s0, dum=entropy_v(298.15,vol)
+          else:
+              s0,dum=entropy_p(298.15,0.0001,prt=False)
+          
+          if ex_internal_flag:
+              exclude.on()
+              ex_internal_flag=False
+          
+          mdl=1
+          if self.model==2:
+             mdl=2
+          if self.HTlim > 0.1:
+             fit_cp=cp_serie(self.tmin,self.tmax,self.points,0.0001,HTlim=self.HTlim, t_max=self.t_max, g_deg=self.g_deg, model=mdl, prt=False)
+          else:
+             fit_cp=cp_serie(self.tmin,self.tmax,self.points,0.0001, g_deg=self.g_deg, prt=False)
+          
+          if mqm !='':   
+             eval(mqm).load_ref(v0,g0,s0)
+             eval(mqm).load_bulk(k_gpa,kp,dkt)
+             eval(mqm).load_cp(fit_cp,power)
+             eval(mqm).load_alpha(fit_al,power_a)
+             eval(mqm).eos='bm'
+             eval(mqm).info()
+          
+          reset_fix()
+          if flag_int:
+              set_fix(kp_original)
+                 
+          
 # reads in data file. It requires a pathname to the folder
 # containing data
 
@@ -3231,7 +3731,7 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
           plt.text(x,y2,v_min, fontfamily='monospace')
           plt.text(x,y3,v_new,fontfamily='monospace')
           plt.text(x,y4,v_ini,fontfamily='monospace')         
-          plt.show()
+          plt.show(block=False)
     else:
        if volume_ctrl.debug:
           x1=np.mean(v_list)
@@ -3256,7 +3756,7 @@ def volume_dir(tt,pp,alpha_flag_1=False, alpha_flag_2=False):
           plt.text(x,y2,v_min, fontfamily='monospace')
           plt.text(x,y3,v_new,fontfamily='monospace')
           plt.text(x,y4,v_ini,fontfamily='monospace')
-          plt.show()
+          plt.show(block=False)
            
     if volume_ctrl.degree > 2:   
        test=vmin.success
@@ -3350,7 +3850,7 @@ def volume_from_F(tt, shrink=10., npoints=60, debug=False):
         plt.ylabel("F (a.u.)")
         plt.xticks(xt)
         plt.title(title)
-        plt.show()
+        plt.show(block=False)
         
         print("\nInitial volume from volume_dir:          %8.4f" % vini)
         print("Volume from EoS fit:                     %8.4f" % v_eos) 
@@ -3415,7 +3915,7 @@ def volume_from_F_serie(tmin, tmax, npoints, fact_plot=10, debug=False, expansio
     plt.xlabel("T (K)")
     plt.ylabel("V (A^3)")
     plt.title("Volume vs Temperature at zero pressure")
-    plt.show()
+    plt.show(block=False)
     
     if expansion:
        logv=np.log(v_list)
@@ -3437,7 +3937,7 @@ def volume_from_F_serie(tmin, tmax, npoints, fact_plot=10, debug=False, expansio
        plt.plot(t_list, logv, "k*", label="Actual values")
        plt.plot(t_plot, lv_plot, "k-", label=label_fit)
        plt.legend(frameon=False)
-       plt.show()
+       plt.show(block=False)
        
        plt.figure()
        plt.title("Thermal expansion")
@@ -3458,12 +3958,12 @@ def volume_from_F_serie(tmin, tmax, npoints, fact_plot=10, debug=False, expansio
              plt.plot(t_plot,alpha_value,"k-", label="Power serie fit")
              
        plt.legend(frameon=False)
-       plt.show()
+       plt.show(block=False)
        
        if export_alpha_fit & flag_alpha & fit_alpha:
           return alpha_fit
 
-def volume_conversion(vv, atojb=True):
+def volume_conversion(vv, atojb=True, prt=True):
     """
     Volume conversion from/to unit cell volume (in A^3) to/from the molar volume
     (in J/bar)
@@ -3476,10 +3976,16 @@ def volume_conversion(vv, atojb=True):
 
     if atojb:
        vv=vv*avo*1e-25/zu
-       print("Molar volume: %7.4f J/bar" % vv)
+       if prt:
+          print("Molar volume: %7.4f J/bar" % vv)
     else:
        vv=vv*zu*1e25/avo
-       print("Cell volume: %7.4f A^3" % vv)
+       if prt:
+          print("Cell volume: %7.4f A^3" % vv)
+    
+    if not prt:
+       return vv
+    
     
 def find_temperature_vp(vv,pp, tmin=100., tmax=1000., prt=True):
     
@@ -3684,7 +4190,7 @@ def bulk_dir(tt,prt=False, out=False, pmax=0., npmax=12, **kwargs):
     plt.plot(vol,press,"k-")
     plt.xlabel("Volume (A^3)")
     plt.ylabel("Pressure (GPa)")
-    plt.show()
+    plt.show(block=False)
     
     if not f_fix_orig:
         reset_fix()
@@ -3761,7 +4267,7 @@ def bulk_dir_serie(tini, tfin, npoints, degree=2, update=False, **kwargs):
     np.set_printoptions(formatter={'float': '{: 4.2e}'.format})
     print(fit_b)
     np.set_printoptions(formatter=None)
-    plt.show()
+    plt.show(block=False)
     
     if update:
        return fit_b       
@@ -3836,7 +4342,7 @@ def bm4_dir(tt,prt=True):
     plt.plot(vol,press,"k-")
     plt.xlabel("Volume (A^3)")
     plt.ylabel("Pressure (GPa)")
-    plt.show()
+    plt.show(block=False)
     
     if prt:
         print("\nVolume-Pressure list at %5.2f K\n" % tt)
@@ -4005,7 +4511,7 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
     tlt="Bulk modulus at pressure "+str(pres)
     plt.title(tlt)
     plt.legend(frameon=False)
-    plt.show()
+    plt.show(block=False)
     
     reset_fix()
     
@@ -4154,7 +4660,7 @@ def static(plot=False, vmnx=[0., 0.], prt=True):
        plt.plot(vol_range, v_bm3(vol_range, *popt), 'b-')
        plt.ylabel("Static energy (a.u.)")
        plt.xlabel("V (A^3)")
-       plt.show()
+       plt.show(block=False)
        
 def p_static(nvol=50, v_add=[], e_add=[]):
     """
@@ -4215,7 +4721,7 @@ def p_static(nvol=50, v_add=[], e_add=[]):
     plt.plot(vol_range, p_GPa, 'b-')
     plt.ylabel("Pressure (GPa)")
     plt.xlabel("V (A^3)")
-    plt.show()
+    plt.show(block=False)
        
     p_stat.flag=True
     p_stat.vmin=np.min(vs)
@@ -4248,14 +4754,14 @@ def p_static(nvol=50, v_add=[], e_add=[]):
     plt.xlabel("Volume (A^3)")
     plt.ylabel("E (hartree)")
     plt.title("E(V) curves")
-    plt.show()
+    plt.show(block=False)
     
     plt.figure()
     plt.plot(vol_range,delta,"k-")
     plt.xlabel("Volume (A^3)")
     plt.ylabel("E (hartree)")
     plt.title("Pstatic and static energy difference")
-    plt.show()
+    plt.show(block=False)
     
     delta=abs(delta)
     
@@ -4319,7 +4825,7 @@ def start_bm4():
     plt.title("Static Energy: BM4 fit")
     plt.xlabel("Static energy (a.u.)")
     plt.ylabel("V (A^3)")
-    plt.show()
+    plt.show(block=False)
         
 def free(temperature):
     """
@@ -4692,7 +5198,7 @@ def entropy_v(tt,vv, plot=False, prt=False, **kwargs):
        plt.figure(4)
        plt.plot(t_range,free_f,"*")
        plt.title("F free energy (a.u.)")
-       plt.show()
+       plt.show(block=False)
        
     fit=np.polyfit(t_range,free_f,degree)
     der1=np.polyder(fit,1)
@@ -4894,7 +5400,7 @@ def thermal_exp_v(tt,vv,plot=False,**kwargs):
        plt.figure(5)
        plt.plot(t_range,pressure,"*")
        plt.title("Pressure (GPa)")
-       plt.show()
+       plt.show(block=False)
     fit=np.polyfit(t_range,pressure,degree)
     der1=np.polyder(fit,1)
     if fixpar:
@@ -5081,7 +5587,7 @@ def alpha_serie(tini,tfin,npoint,pp,plot=False,prt=True, fit=True,HTlim=0., g_fi
        plt.plot(t_value,alpha_value,"k-")
     if save !='':
        plt.savefig(fname=path+'/'+save+'.'+ext,dpi=dpi, bbox_inches='tight')
-    plt.show()
+    plt.show(block=False)
     latex.off()
     if prt:
         return None
@@ -5312,7 +5818,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
     plt.xlim(tmin, tmax)
     plt.title("Log(V) vs T")
     plt.legend(frameon=False)
-    plt.show()
+    plt.show(block=False)
     
     plt.figure()
     plt.plot(t_plot, alpha_plot, "k-", label="From V(T) fit")
@@ -5331,7 +5837,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
     plt.xlim(tmin, tmax)
     plt.legend(frameon=False)
     plt.title("Thermal expansion")
-    plt.show()
+    plt.show(block=False)
     
     if fit:
         plt.figure()
@@ -5342,7 +5848,7 @@ def alpha_dir_v(tmin, tmax, nt=12, type='spline', deg=4, smooth=0.001, comp=Fals
         plt.ylabel("Alpha (K^-1)")
         plt.legend(frameon=False)
         plt.title("Alpha: power serie fit")
-        plt.show()
+        plt.show(block=False)
         
     if comp & flag[0] & flag[1] & flag[2]:    
        fmt="{:4.2e}"
@@ -5438,13 +5944,14 @@ def alpha_dir_serie(tmin, tmax, nt, pp, fit=True, prt=True):
     plt.xlabel("T (K)")
     plt.ylabel("Alpha (K^-1)")
     plt.title("Thermal expansion")
-    plt.show()
+    plt.show(block=False)
+    
     
     if prt:
        fmt1="{:5.1f}"
        fmt2="{:4.2e}"
        t_l=list(fmt1.format(it) for it in t_l)
-       alpha_l=list(fmt2(ia) for ia in alpha_l)
+       alpha_l=list(fmt2.format(ia) for ia in alpha_l)
        serie=(t_l, alpha_l)
        df=pd.DataFrame(serie,index=['Temp.','   Alpha  '])
        df=df.T
@@ -5487,7 +5994,10 @@ def alpha_dir_from_dpdt(tt, pp, prt=False):
              are returned (default False)
     """
     
-    bulk, vol=bulk_modulus_p(tt, pp, noeos=True, prt=False)
+    noeos=True
+    if flag_upl: noeos=upl.noeos
+        
+    bulk, vol=bulk_modulus_p(tt, pp, noeos, prt=False)
 
     delta=delta_ctrl.get_delta()
     nump=delta_ctrl.get_nump()
@@ -5597,7 +6107,7 @@ def alpha_dir_from_dpdt_serie(tmin, tmax, nt=12, pp=0, fit=False, phase='',
     if save:
        name=path+'/'+'alpha_from_dpdt.'+ext
        plt.savefig(name, dpi=dpi, bbox_inches='tight')
-    plt.show()
+    plt.show(block=False)
     latex.off()
     
     if fit and (phase != ''):
@@ -5647,7 +6157,7 @@ def cp_dir_serie(tmin, tmax, nt, pp=0):
   
     plt.figure()
     plt.plot(t_list, cp_list, "k-")
-    plt.show()
+    plt.show(block=False)
   
 def cp(tt,pp,plot=False,prt=False,dul=False,**kwargs):
     """
@@ -5837,7 +6347,7 @@ def compare_exp(graph_exp=True, unit='j' ,save="",dpi=300,**kwargs):
        plt.legend()
        if save != '':
           plt.savefig(fname=path+'/'+save, dpi=dpi)
-       plt.show()
+       plt.show(block=False)
        if not flag_warning.value:
            print("Warning: issue on volume repeated %d times" % \
                    flag_warning.jwar)
@@ -5986,7 +6496,7 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
           plt.title("Specific heat as a function of T")
        if save !='':
           plt.savefig(fname=path+'/'+save,dpi=dpi, bbox_inches='tight')
-       plt.show()
+       plt.show(block=False)
        latex.off()
     if prt:
        return None
@@ -6018,7 +6528,7 @@ def gamma_estim(tini,tfin,npoint=12,g_deg=2, dir=False):
     plt.xlabel("T(K)")
     plt.ylabel("Gamma")
     plt.title("Gamma (Cp/Cv) as a function of T")
-    plt.show()
+    plt.show(block=False)
      
     print("\nGamma(T) polynomial fit of degree %2i   (g_deg value):" % g_deg)
     return pol
@@ -6101,7 +6611,7 @@ def bulk_serie(tini,tfin,npoint,fit=True,degree=2,update=False,\
         np.set_printoptions(formatter=None)
     if save !='':
        plt.savefig(fname=path+'/'+save,dpi=dpi, bbox_inches='tight')
-    plt.show()
+    plt.show(block=False)
     latex.off()
     
     if update:
@@ -6313,7 +6823,7 @@ def gibbs_serie_p(pini, pfin, npres, tt, prt=True, **kwargs):
     ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))   
     ax.set_xlabel("Pressure (GPa)")
     ax.set_ylabel("G (J/mol)")
-    plt.show()
+    plt.show(block=False)
     
     if prt:
        print("\nPress (GPa)  Gibbs energy (J/mol)\n" )
@@ -6412,7 +6922,7 @@ def gibbs_serie_t(tini, tfin, ntemp, pp, prt=True, **kwargs):
     ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))   
     ax.set_xlabel("Temperature (K)")
     ax.set_ylabel("G (J/mol)")
-    plt.show()
+    plt.show(block=False)
     
     if prt:
         print("\nTemp  (K)   Gibbs energy (J/mol)\n" )
@@ -6513,7 +7023,7 @@ def eos_temp(tt,prt=True,update=False,kp_only=False, save=False, \
     if save:
        filename=path+'/eos' + '.' + ext
        plt.savefig(filename, dpi=dpi, bbox_inches='tight')
-    plt.show()
+    plt.show(block=False)
     latex.off()
     print("\nVolume-Pressure list at %5.2f K\n" % tt)
     for vp_i in volb:
@@ -6524,7 +7034,7 @@ def eos_temp(tt,prt=True,update=False,kp_only=False, save=False, \
         print(" %5.3f   %5.2f" % (vp_i, pv_i))
 
 
-def eosfit_dir(file_name, pmax=0., unit=False): 
+def eosfit_dir(file_name, pmax=0., unit=False, scale=0.): 
     """
     Writes a PVT file to be used with EosFit
     Temperature data are in the temperature_list list
@@ -6536,10 +7046,12 @@ def eosfit_dir(file_name, pmax=0., unit=False):
               (in GPa); if pmax=0. (default) there is no limit
               in the pressure (which is determined by the input volume
               range).
+        scale: if scale > 0., a scale factor is applied to the volume 
+               values (default 0.) 
         
     Examples:
        >>> eosfit_dir("myfile.dat")
-       >>> eosfit_dir("myfile.dat", pmax=10., unit=True)
+       >>> eosfit_dir("myfile.dat", pmax=10., unit=True, scale=0.9787)
  
     enclose the file name in quotes.
     
@@ -6585,6 +7097,8 @@ def eosfit_dir(file_name, pmax=0., unit=False):
                 vi=vi/supercell.number
             if unit:
                 vi=vi*1e-24*avo/zu
+            if scale > 0.01:
+               vi=vi*scale
             if pi >=-0.02:
                pvt=np.array([pi, vi, ti])
                if (pmax > 0.1) & (pi <= pmax):                   
@@ -6836,7 +7350,7 @@ def freq_poly_p(ifr,tt=300., p0=0., plot=True, prt=True, **kwargs):
           plt.plot(vol_range,ivalf,"b-")
           plt.xlabel("V (A^3)")
           plt.ylabel("Freq (cm^-1)")
-          plt.show()
+          plt.show(block=False)
     if prt:
        print("\nFrequency: %6.2f cm^-1" % f0)
        print("Pressure %4.2f GPa, temperature %5.2f K, " \
@@ -6885,7 +7399,7 @@ def freq_spline_p(ifr,tt=300.,pp=0.,prt=True,**kwargs):
        plt.plot(data_vol_freq,ifl,"k*")
        plt.xlabel("Volume (A^3)")
        plt.ylabel("Frequency (cm^-1)")
-       plt.show()
+       plt.show(block=False)
        print("Frequency: %5.2f" % fr)
        print("Pressure: %4.2f GPa, temperature %5.2f K, volume %8.4f A^3" %\
           (pp, tt, volp))
@@ -6943,7 +7457,7 @@ def check_spline(ifr, save=False, title=True, tex=False):
         filename=path + '/mode_' + str(ifr) + '.' + ext
         plt.savefig(filename, dpi=dpi, bbox_inches='tight')
         print("Figure saved as %s" % filename)
-    plt.show()
+    plt.show(block=False)
     latex.off()
     
 def check_poly(ifr, save=False, title=True, tex=False):
@@ -6997,7 +7511,7 @@ def check_poly(ifr, save=False, title=True, tex=False):
         filename=path + '/mode_' + str(ifr) + '.' + ext
         plt.savefig(filename, dpi=dpi, bbox_inches='tight')
         print("Figure saved as %s" % filename)
-    plt.show()
+    plt.show(block=False)
     latex.off()
     
 def frequency_p_range(ifr, pmin, pmax, npoint, dir=False, temp=298.15, degree=1, \
@@ -7097,7 +7611,7 @@ def frequency_p_range(ifr, pmin, pmax, npoint, dir=False, temp=298.15, degree=1,
        name=path+'/'+'mode_'+str(ifr)+'_vs_P.'+ext
        plt.savefig(name, dpi=dpi, bbox_inches='tight')
     
-    plt.show()
+    plt.show(block=False)
     latex.off()
     
     print(fit_str)
@@ -7199,7 +7713,7 @@ def frequency_t_range(ifr, tmin, tmax, npoint, dir=False, pressure=0., degree=1,
        name=path+'/'+'mode_'+str(ifr)+'_vs_T.'+ext
        plt.savefig(name, dpi=dpi, bbox_inches='tight')
     
-    plt.show()
+    plt.show(block=False)
     latex.off()
     
     print(fit_str)
@@ -7369,7 +7883,7 @@ def pressure_freq(ifr,freq,tt,degree=4,**kwargs):
     pres_f=np.polyval(f_opt,freq)
     
     plt.plot(freq_list, p_list,"k-")
-    plt.show()
+    plt.show(block=False)
     
     print("Pressure: %6.2f GPa" % pres_f)
     print("Mode: %d, frequency: %6.2f cm^-1, temperature: %6.2f K" %\
@@ -7445,7 +7959,7 @@ def temperature_freq(ifr,freq, tmin, tmax, npt, pp,degree=2,**kwargs):
     temp_f=np.polyval(f_opt,freq)
     
     plt.plot(freq_list, t_list,"k-")
-    plt.show()
+    plt.show(block=False)
     
     print("Temperature: %6.2f K" % temp_f)
     print("Mode: %d, frequency: %6.2f cm^-1, Pressure: %6.2f GPa" %\
@@ -7506,7 +8020,7 @@ def grun_mode_vol(ifr,vv, method='poly',plot=False):
        ax.set_xlabel("V (A^3)")
        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
        ax.set_ylabel("Freq (cm^-1)")
-       plt.show()
+       plt.show(block=False)
     return -1*vv*derf/ffit,ffit
 
 def gruneisen(vol, method='poly',plot=True):
@@ -7544,7 +8058,7 @@ def gruneisen(vol, method='poly',plot=True):
        ax.plot(freq_list,grun_list,"k*")
        ax.set_xlabel("Mode frequency")
        ax.set_ylabel("Gruneisen")
-       plt.show()   
+       plt.show(block=False)   
     
     if not plot:
        return grun_list
@@ -7648,7 +8162,7 @@ def q_parameter(pfin=5., temp=298.15, npoint=12, dir=False):
     plt.xlabel("V/V0")
     plt.ylabel("gr/gr_0")
     plt.title("q-plot")
-    plt.show()
+    plt.show(block=False)
     
     print("Temperature:           %5.1f K" % temp)
     print("Maximum pressure:      %5.1f GPa" % pfin)
@@ -7692,14 +8206,14 @@ def delta_T_parameter(tmax, npoint=8, tref=298.15, out=False):
     rk_plot=np.array(rk_plot)
         
     
-    plt.show()
+    plt.show(block=False)
     plt.plot(rv_plot, rk_plot,"k-",label="Fit")
     plt.plot(rvl,rkl,"k*", label="Actual values")
     plt.xlabel("V0/V")
     plt.ylabel("K/K0")
     plt.title("K/K0 = (V0/V)^delta_T plot")
     plt.legend(frameon=False)
-    plt.show()
+    plt.show(block=False)
     
     
     print("delta_T = %5.2f" % delta_t)
@@ -7777,7 +8291,7 @@ def grun_therm_serie(tini,tfin,npoint=12,HTlim=2000.,degree=1,g_deg=1, ex=False,
     plt.xlabel("Temperature (K)")
     plt.ylabel("J^-1")
     plt.title("Gamma/VK_T")
-    plt.show()   
+    plt.show(block=False)   
     
     fact_lim=np.polyval(f_coef,HTlim)
     alpha_limit=dp_limit*fact_lim 
@@ -7854,7 +8368,7 @@ def pressure_phonon_mode(ifr,tt,vol,method='poly'):
     
     return p_total_i, pz_i
 
-def pressure_phonon(tt,vol,method='poly',plot=True, prt=True):
+def pressure_phonon(tt,vol,method='poly',plot=True, prt=True, prt_list=False, thr=0.):
     """
     Vibrational pressure from all the normal modes at given temperature
     and volume
@@ -7893,14 +8407,32 @@ def pressure_phonon(tt,vol,method='poly',plot=True, prt=True):
        return p_total, pz_total
     
     if plot:        
-       plt.figure()
+       plt.figure(dpi=120)
        plt.plot(int_mode,p_list,"r*")
+       if thr > 0.:
+          x0=0
+          x1=np.max(int_mode)
+          y0=thr
+          y1=thr
+          mxy=np.max(p_list)
+          plt.plot((x0,x1), (y0,y1), "--")
+          s_thr="Threshold: "+str(thr)+" GPa"
+          plt.text(x1*0.65, y1+((mxy-y1)*0.05), s_thr)
+           
+       plt.xlim(0, np.max(int_mode))    
        plt.xlabel("Mode number")
        plt.ylabel("Pressure (GPa)")
-       plt.show()
+       plt.show(block=False)
     
     print("\nTotal phonon pressure: %4.2f GPa " % p_total)
     print("Zero Point pressure:   %4.2f GPa " % pz_total)
+    
+    if prt_list:
+       print("\nPhonon pressure (GPa) for each mode; threshold: %3.2f" % thr)
+       print("\nMode  Pressure")
+       for iv in int_mode:
+           if abs(p_list[iv]) > thr:
+              print("%3i     %5.2f" % (iv, p_list[iv]))
     
     if not plot:
        return p_list
@@ -8044,7 +8576,7 @@ def acoustic_func():
     plt.ylabel("P (GPa)")
     plt.legend(frameon=False)
     plt.title("P acoustic per mode")                   
-    plt.show()
+    plt.show(block=False)
     
     return fit
 
@@ -8216,151 +8748,6 @@ def upload_mineral(tmin,tmax,points=12,HT_lim=0., t_max=0., deg=1, g_deg=1, mode
         set_fix(kp_original)
         
         
-def upload_mineral_2(tmin,tmax,points=12,HT_lim=0., t_max=0., g_deg=1, model=1, mqm='py',\
-                    alpha_dir=False, dir=False, volc=False):
-    """
-    Prepares data to be uploaded in the mineral database.
-    
-    Args:
-        tmin:   minimum temperature for fit K0, Cp and alpha
-        tmax:   maximum temperature for fit
-        points: number of points in the T range for fit
-        mqm:    name of the mineral, as specified in the internal 
-                database,
-        alpha_dir:  if True, the alpha_dir_serie function is used for the
-                    computation of thermal expansion
-        dir:      if True, the bulk_modulus_p_serie function is used
-                  to compute the bulk modulus as a function of T 
-                  (with noeos=False); K0, V0 and Kp are from an eos_temp
-                  computation.
-                  If False, the function bulk_serie is used.
-        HT_lim: Temperature at which the Dulong-Petit limit for Cv
-                is supposed to be reached (default 0.: no Dulong-Petit
-                model)
-        t_max:  maximum temperature for the power series fit of Cp(T);
-                if t_max=0. (default), t_max=HT_lim. The parameter is
-                relevant oly if HT_lim is not zero.
-        model:  Used in the HT_limit estimation of Cv; Einstein model
-                for Cv(T) with one frequency (default model=1), or with
-                2 frequencies (model=2)
-        g_deg:  Used in the HT limit estimation of Cp (relevant if
-                HT_lim > 0.; default 1)
-        volc:   if True, V0 is set at the value found in the database
-                (default: False)
-        
-                
-    Example:
-        >>> upload_mineral(300,800,16,mqm='coe', blk_dir=True)
-    """
-    
-    
-    flag_int=False
-    if f_fix.flag:
-        kp_original=f_fix.value
-        flag_int=True
-        reset_fix()
-              
-    if not volume_correction.flag:
-        volume_correction.set_volume(eval(mqm).v0)
-        volume_correction.on()
-      
-    g0=eval(mqm).g0
-    
-    if dir:
-        t_list=np.linspace(298, tmax, points)
-        v0, k_gpa, kp=bulk_dir(298,prt=False,out=True)
-       
-        xx=list(bulk_dir(tt,prt=False,out=True) for tt in t_list) 
-        xx=np.array(xx)
-    
-        v_list=xx[:,0] 
-        k_list=xx[:,1]
-    
-        fit_k=np.polyfit(t_list,k_list,1)
-        dkt=fit_k[0]
-    else:
-        v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
-        set_fix(kp)
-        fit_b=bulk_serie(298.15,tmax,5,degree=1,update=True)
-        dkt=fit_b[0]
-        
-    if alpha_dir:
-        volume_ctrl.set_shift(0.)
-        t_list=np.linspace(tmin, tmax, points)
-        print("\n*** alpha_dir computation: V(T) curve computed with the")
-        print("                           bulk_modulus_p_serie function")
-        b_par,v_par=bulk_modulus_p_serie(tmin,tmax,points,0,noeos=True,fit=True,type='spline',\
-                                deg=3,smooth=5,out=True)
-        
-        v_list=v_par(t_list)    
-    
-        fit_v=np.polyfit(t_list,v_list,4)    
-        fit_der=np.polyder(fit_v,1)
-        alpha_list=(np.polyval(fit_der,t_list))
-        alpha_list=list(alpha_list[it]/v_list[it] for it in np.arange(points))   
-        coef_ini=np.ones(lpow_a)
-        fit_al, alpha_cov=curve_fit(alpha_dir_fun,t_list,alpha_list,p0=coef_ini)
-        
-        t_plot=np.linspace(tmin, tmax, points*3)
-        alpha_plot=alpha_dir_fun(t_plot,*fit_al)
-        
-        plt.figure()
-        plt.plot(t_plot, alpha_plot, "k-", label="Fit")
-        plt.plot(t_list, alpha_list, "k*", label="Actual values")
-        plt.legend(frameon=False)
-        plt.title("Thermal expansion")
-        plt.xlabel("T (K)")
-        plt.ylabel("Alpha (K^-1)")
-        plt.show()
-        
-    else:
-        fit_al=alpha_serie(tmin,tmax,points,0.0001,prt=False,g_deg=g_deg)
-        
-    
-    if not volc:
-        v0=v0*1e-30*1e5*avo/zu 
-    else:
-        v0=volume_correction.v0_init
-        
-    ex_internal_flag=False
-    if exclude.flag & (not anharm.flag):
-        exclude.restore()
-        ex_internal_flag=True
-        print("\nWarning ** Excluded modes restored in order\nto "
-              "correctly compute entropy and specific heat")
-        print("At the end of computation, exclusion of modes "
-              "will be rectivated")
-     
-    if dir:
-        volume_ctrl.set_shift(0.)
-        vol=volume_dir(298.15,0)
-        s0, dum=entropy_v(298.15,vol)
-    else:
-        s0,dum=entropy_p(298.15,0.0001,prt=False)
-    
-    if ex_internal_flag:
-        exclude.on()
-        ex_internal_flag=False
-    
-    mdl=1
-    if model==2:
-       mdl=2
-    if HT_lim > 0.:
-       fit_cp=cp_serie(tmin,tmax,points,0.0001,HTlim=HT_lim, t_max=t_max, g_deg=g_deg, model=mdl, prt=False)
-    else:
-       fit_cp=cp_serie(tmin,tmax,points,0.0001, g_deg=g_deg, prt=False)
-       
-    eval(mqm).load_ref(v0,g0,s0)
-    eval(mqm).load_bulk(k_gpa,kp,dkt)
-    eval(mqm).load_cp(fit_cp,power)
-    eval(mqm).load_alpha(fit_al,power_a)
-    eval(mqm).eos='bm'
-    
-    reset_fix()
-    if flag_int:
-        set_fix(kp_original)
-        
-
 def reaction_dir(tt,pp,mqm,prod_spec, prod_coef, rea_spec, rea_coef):
     
     
@@ -8482,7 +8869,7 @@ def equilib_dir(tini,tfin,npoint, mqm='py', \
     ax.set_xlabel("Temperature (K)")
     ax.set_ylabel("Pressure (GPa)")
     plt.savefig(fname=path+'/'+"react",dpi=600)
-    plt.show()
+    plt.show(block=False)
     
     if flag_volume_max.jwar > 0:
         print("\nWarning on volume repeated %d times" % flag_volume_max.jwar)
@@ -8541,8 +8928,13 @@ def einstein_t(tini, tfin, npoint, HT_lim=3000,dul=False,model=1):
        kp_original=f_fix.value
        flag_int=True
        reset_fix()
-       
-    v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
+    
+    if upl.bdir:
+       v0, k_gpa, kp=bulk_dir(298.15, out=True) 
+       print("\nbulk_dir computation of the Bulk modulus")
+    else:    
+       v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
+    
     set_fix(kp)
     print("Kp fixed to %4.2f" % kp)
     
@@ -8586,7 +8978,7 @@ def einstein_t(tini, tfin, npoint, HT_lim=3000,dul=False,model=1):
                 t_range, cv_list, "k*")  
     plt.xlabel("Temperature (K)")
     plt.ylabel("Cv (J/mol K)")
-    plt.show()
+    plt.show(block=False)
     
     print("\nEinstein temperature")
     print("empirical estimation (from molar entropy): %6.2f K" % emp)
@@ -8756,14 +9148,14 @@ def cv_k_plot(tini, tfin, npoints):
     plt.title("Cv contribution from acoustic phonons")
     plt.xlabel("T (K)")
     plt.ylabel("Cv (J/mol K)")
-    plt.show()
+    plt.show(block=False)
     
     plt.figure()
     plt.plot(t_range, s_range,"k-")    
     plt.xlabel("T(K)")
     plt.ylabel("S (J/mol K")
     plt.title("Entropy contribution from acoustic phonons")
-    plt.show()
+    plt.show(block=False)
 
 def anharm_setup():
     anh_inp=path+'/'+'anh.txt'
@@ -8803,6 +9195,12 @@ def anharm_setup():
     row=int(size/fact)
         
     anharm.param=anharm.param.reshape(anharm.nmode,row,3)
+    
+    deg_v_list=anharm.param[0,:,0]
+    deg_t_list=anharm.param[0,:,1]
+    
+    anharm.vdeg=int(np.max(deg_v_list))
+    anharm.tdeg=int(np.max(deg_t_list))
     
 def helm_anharm_func(mode,vv,tt):
     h=0.
@@ -8903,7 +9301,7 @@ def anharm_pressure(mode,tmin,tmax,nt,deg=2,dv=2,fit=True, fit_deg=4, prt=True):
     plt.xlabel("T (K)")
     plt.ylabel("P (GPa)")
     plt.title(title)
-    plt.show()
+    plt.show(block=False)
     
 def debye_limit(tmin=0.1,tmax=50,nt=24):
     
@@ -8951,7 +9349,7 @@ def debye_limit(tmin=0.1,tmax=50,nt=24):
     plt.legend(frameon=False)
     plt.xlabel("T (K)")
     plt.ylabel("Cv (J/mol K")
-    plt.show()
+    plt.show(block=False)
       
     
 def cv_fit_func(tt,par3):
@@ -9054,14 +9452,14 @@ def debye(tmin=5.,tmax=300.,nt=24, d_min=50., d_max=1500., nd=48):
     plt.xlabel("T (K)")
     plt.ylabel("Cv (J/mol K")
     plt.title("Fit with the Debye model")
-    plt.show()
+    plt.show(block=False)
     
     plt.figure()
     plt.plot(t_list,ierr,"*")
     plt.xlabel("T (K)")
     plt.ylabel("Cv error (J/mol K)")
     plt.title("Cv_fit - Cv distribution")
-    plt.show()
+    plt.show(block=False)
 
 def cv_fit_func_high(tt,debye_t):
     t_lim=debye_t/tt
@@ -9114,10 +9512,10 @@ def main():
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
     global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex, thermal_expansion
-    global plot, direct, zp, ac_approx
+    global plot, direct, zp, ac_approx,upl, upl, flag_upl
     
     ctime=datetime.datetime.now()
-    version="2.6.6 - 29/07/2022"
+    version="2.8.0 - 12/10/2022"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
@@ -9142,6 +9540,7 @@ def main():
     flag_warning=flag(True)
     flag_view_input=flag(True)
     flag_dir=flag(False)
+    flag_upl=flag(False)
     f_fix=fix_flag()
     vol_opt=fit_flag()
     alpha_opt=fit_flag()
@@ -9167,12 +9566,19 @@ def main():
     thermal_expansion=thermal_expansion_class()
     direct=direct_class() 
     ac_approx=acoustic_approx_class()
+    upl=UploadMineral()
     
     vol_opt.on()
-    alpha_opt.on()    
+    alpha_opt.on()  
+    quick_file='quick_start.txt'
     
-    if os.path.isfile("quick_start.txt"):
-        with open("quick_start.txt") as fq:
+    if exe_flag:
+       quick_file=input("Input name for the quick_start file:  ")
+       outfile=input("Output file name: ")
+       sys.stdout = open(outfile, 'w')
+    
+    if os.path.isfile(quick_file):
+        with open(quick_file) as fq:
             l0='#'
             while (l0 == '#'):
                  input_str=fq.readline().rstrip()
@@ -9223,6 +9629,10 @@ def main():
                exec(i_instr)
                if rspace:
                    print("")
+    
+    if exe_flag:
+       sys.stdout = sys.__stdout__               
+       input("Input ENTER to exit\n")  
            
 if __name__=="__main__":
     main()
