@@ -22,6 +22,11 @@
 #  4) order of the polynomial used to fit the Helmholtz 
 #         free energy as a function of V and T. The unit
 #         of the computed free energy is the hartree. 
+#  5) number of lines containing volumes and harmonic frequencies
+#     for which the computation of the Helmholtz energy follows the 
+#     harmonic approximation
+#     If this number is 0, the input ends here; otherwise:
+#  6) and following lines: volumes (A^3) and harmonic frequencies (cm^-1). 
 #
 # The output file contains the power of the fitting polynomial
 # together with the optimized coefficents to reconstruct the
@@ -126,7 +131,14 @@ def load_files():
 
    prn_vol=str(volumes)
    print("Number of data SCAN's: %3i:" % nvol)
-   print("Volumes: %s" % prn_vol)   
+   print("Volumes: %s" % prn_vol)  
+  
+   glob.nvol_t=glob.nvol
+   if glob.nharm > 0:
+      glob.nvol_t=glob.nvol+glob.nharm
+      print("\nHarmonic contributions:\n   V          Freq")
+      for ih in range(glob.nharm):
+          print("%8.4f   %8.2f" % (glob.hvol[ih], glob.hfreq[ih]))                   
  
 def set_up():  
          
@@ -419,18 +431,36 @@ def helm_fit(temp=300):
     """
     start(temp)    
     tl=np.linspace(tmin,tmax,nt)
-    vl=glob.volumes
+    vl=glob.volumes  
+    vl_anh_flag=np.repeat(1, glob.nvol)
+        
+    if glob.nharm > 0:
+       vl=np.append(vl,glob.hvol)
+       vl_h_flag=np.repeat(0, glob.nharm)
+       vl_flag=np.append(vl_anh_flag, vl_h_flag)
+       
+       glob.v_flag=vl_flag       
+       glob.volumes_t=np.append(glob.volumes, glob.hvol)
+    else:
+       glob.volumes_t=glob.volumes
+       glob.v_flag=vl_anh_flag        
     
-    helm_val=np.array([])
+    helm_val=np.array([])    
     
     for it in tl:
-        for iv in np.arange(glob.nvol):
-            ih=helm(iv,it)
+        jh=0
+        for iv in np.arange(glob.nvol_t):
+            if glob.v_flag[iv]==1:
+               ih=helm(iv,it)
+            else:
+               ih=helm_harm(glob.hfreq[jh],it)
+               jh=jh+1
+               
             helm_val=np.append(helm_val,ih)
     
-    helm_val=helm_val.reshape(nt,glob.nvol)
+    helm_val=helm_val.reshape(nt,glob.nvol_t)
     vl,tl=np.meshgrid(vl,tl)
-
+    
     ptt=np.arange(pt+1)
     pvv=np.arange(pv+1)
     p_list=np.array([],dtype=int)
@@ -454,7 +484,7 @@ def helm_fit(temp=300):
     vl=vl.flatten()
     tl=tl.flatten()
     helm_val=helm_val.flatten()
-    
+        
     fit, pcov = curve_fit(helm_func, [vl, tl], helm_val, p0 = x0)
     
     t_plot=np.linspace(tmin,tmax,40)
@@ -496,8 +526,8 @@ def helm_fit(temp=300):
     print("V, T polynomial fit of degree %3i %3i" % (pv, pt))
     print("Temperature range: tmin=%4.1f, tmax=%4.1f" % (tmin,tmax))
     
-    vmin=np.min(glob.volumes)
-    vmax=np.max(glob.volumes)
+    vmin=np.min(glob.volumes_t)
+    vmax=np.max(glob.volumes_t)
     
     print("Volume range: Vmin=%5.3f, Vmax=%5.3f" % (vmin, vmax))
     
@@ -778,11 +808,34 @@ def single(temp=300, max_lev=5, qmin=0., qmax=0., tmin=300, tmax=1000, nt=4, nli
                     degree=4,chk=False, temp=300)
     spectrum(0,temp,nline, tail, head, sigma, fwhm, eta, npp)
     
+
+def helm_harm(freq, temp, prt=False):
+    """
+    Computation of the Helmholtz (F) free energy for an harmonic mode
+    having a given frequency, at a given temperature.
+    
+    Args:
+        freq: frequency (cm^-1)
+        temp: temperature (K)
+        prt: if True, the value of F is printed, otherwise the value of F
+             is returned
+    """
+    fth=np.log(1-np.e**(freq*e_fact/temp)) 
+    enz=freq*ez_fact
+    free=enz+fth*k*temp/conv
+    if prt:
+        print("Free energy from the harmonic calculation")
+        print("Harmonic Frequency: %6.2f cm^-1" % freq)
+        print("Temperature:        %6.2f K" % temp)
+        print("Free energy:        %8.6e J/mole" % free)
+    else:
+        return free
+    
     
 def main():
     global ctime, h, k, r, csl, avo, ht, bohr, uma, iun, conv, anh
     global glob, flag, abs_path, path, outfile, temp, power_limit
-    global tmin, tmax, nt, Version, pv, pt
+    global tmin, tmax, nt, Version, pv, pt, e_fact, ez_fact
     
     Version="1.1 - 16/07/2020"
     ctime=datetime.datetime.now()
@@ -798,6 +851,8 @@ def main():
     bohr=5.291772108e-11
     uma=1.6605386e-27
     iun=complex(0,1)
+    e_fact=-1*h*csl/k
+    ez_fact=0.5*h*csl/conv
         
     glob=data_class(200)
     flag=data_flag()
@@ -826,12 +881,39 @@ def main():
     else:
         pv=int(power_limit[0])
         pt=int(power_limit[1])
+        
+    harm_file=fi.readline().rstrip()
+    print(harm_file)
     
-
+    flag_h=False
+    if (harm_file != 'None') & (harm_file != 'none'):
+       flag_h=True
+       fih=open(path+'/'+harm_file)
+       harm_line=fih.readline()
+       harm_line=int(harm_line.rstrip())
+    
+    glob.nharm=0
+    glob.hvol=np.array([])
+    glob.hfreq=np.array([])
+   
+    if flag_h:
+       glob.nharm=harm_line
+       for ih in range(harm_line):
+           iline=fih.readline()
+           iline=iline.rstrip().split()
+           hivol=float(iline[0])
+           hfi=float(iline[1])
+           glob.hvol=np.append(glob.hvol, hivol)
+           glob.hfreq=np.append(glob.hfreq, hfi)
+           
+                  
     tmin=float(temp[0])
     tmax=float(temp[1])
     nt=int(temp[2])
-
+    
+    if flag_h:
+       fih.close()
+       
     fi.close()
 
     print("This is Anharm, version %s \n" % Version)
@@ -839,6 +921,7 @@ def main():
     
     load_files()
     anh=np.ndarray((glob.nvol,), dtype=object)
+
         
 if __name__=="__main__":
     main()
