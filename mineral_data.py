@@ -234,6 +234,7 @@ jeff=mineral("jeffbenite", "jeff")
 jeff_fe=mineral("Fe-jeffbenite", "jeff_fe")
 jeff_fe3p=mineral("Fe3p-jeffbenite", "jeff_fe3p")
 jeff_feb=mineral("Feb-jeffbenite", "jeff_feb")
+zrc=mineral("Zircon", "zrc")
 
 def export(mineral_nick):
     
