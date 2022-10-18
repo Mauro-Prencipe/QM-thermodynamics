@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.8.0 12/10/2022
+# Version 2.8.1 18/10/2022
 #
 
 # Comment the following three lines to produce the documentation 
@@ -16,9 +16,9 @@ exe_flag=False
 
 import datetime
 import os  
-import sys  
+import sys 
+import warnings 
 import scipy
-import warnings
 import numpy as np
 import matplotlib as mpl
 
@@ -43,7 +43,9 @@ from plot import plot_class
 from mineral_data import mineral, load_database, equilib, reaction,\
      pressure_react, export, field, import_database, name_list
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
-     mao, fmao, stv, cc, arag, jeff, jeff_fe, jeff_fe3p, jeff_feb
+     mao, fmao, stv, cc, arag, jeff, jeff_fe, jeff_fe3p, jeff_feb, zrc
+
+warnings.filterwarnings('ignore')
 
 import_database()
 
@@ -2211,6 +2213,91 @@ class UploadMineral():
          
       def set_export(self, exp):
           self.export=exp
+          
+      def set_parameters(self, **kwargs):
+          """
+          Set parameters for the compute method by using a single set method.
+          Each parameter is specified by a keyword according to the following list
+          
+          Args:
+              trange: minimum, maximum and number of points for the definition 
+                      of temperature range for the fits of K0, Cp and alpha
+              phase:    name of the mineral, as specified in the internal 
+                      database
+              alpha_method: if equal to 'k_alpha_dir', thermal expansion is computed
+                          from the K*alpha product, and K is evaluated from
+                          the bulk_modulus_p function, with the chosen noeos option
+                          (see below). 
+                          If alpha_method='k_alpha_eos', the bulk_modulus in the
+                          K*alpha product is from a V-BM3 EoS function is used 
+                          (default 'alpha_alpha_dir')
+              fix:   if True and if alpha_method='k_alpha_eos', the K' is kept
+                     fixed at the value refined at T=298.15 K (relevant if 
+                     alpha_method=k_alpha_eos; default False)
+              reuss: if True, the bulk_modulus_p_serie function is used
+                     to compute the bulk modulus as a function of T 
+                     (with the chosen noeos option); K0, V0 and Kp are from 
+                     an bulk_dir computation. If False, the function bulk_serie 
+                     is used. (Default False)
+              noeos: relevant if reuss=True or alpha_method='k_alpha_dir' (default True)
+              bdir:  the bulk_dir function is used to compute dK/dT (default True)
+              t_bulk:  maximum temperature for dK/dT fit (relevant if reuss or bdir are True)
+                       if t_bulk=0., t_bulk=tmax (default: 0.)
+              HTlim: Temperature at which the Dulong-Petit limit for Cv
+                     is supposed to be reached (default 0.: no Dulong-Petit
+                     model)
+              t_max: maximum temperature for the power series fit of Cp(T);
+                     if t_max=0. (default), t_max=HTlim. The parameter is
+                     relevant oly if HTlim is not zero.
+              model: Used in the HTlimit estimation of Cv; Einstein model
+                     for Cv(T) with one frequency (default model=[1,g_deg]), or 
+                     with 2 frequencies (model=[2, g_deg]). 
+                     The g_deg parameter is Used in the HTlim estimation of Cp 
+                     (default 1)
+              volc:  if True, V0 is set at the value found in the database
+                     (default: False)
+              export: if True, the computed data are exported in the database
+                      file with the appropriate formatting the the usage
+                      in the Perplex program (default False)        
+          """
+          l_arg=list(kwargs.items())
+          
+          for karg_i in l_arg:
+             if 'trange' == karg_i[0]:
+                 self.set_t_range([karg_i[1][0], karg_i[1][1], karg_i[1][2]])
+             if 't_max' == karg_i[0]:
+                 self.set_t_cp(karg_i[1])
+             if 't_bulk' == karg_i[0]:
+                 self.set_t_bulk(karg_i[1]) 
+             if 'reuss' == karg_i[0]:
+                 self.set_reuss(karg_i[1])
+             if 'noeos' == karg_i[0]:
+                 self.set_noeos(karg_i[1])   
+             if 'bdir' == karg_i[0]:
+                 self.set_bulk_direct(karg_i[1])             
+             if 'HTlim' == karg_i[0]:
+                 self.set_HTlim(karg_i[1])
+             if 'model' == karg_i[0]:
+                 self.set_model([karg_i[1][0], karg_i[1][1]])
+             if 'alpha_method' == karg_i[0]:
+                 self.alpha_method=karg_i[1]
+             if 'fix' == karg_i[0]:
+                 self.fix=karg_i[1]
+             if 'volc'==karg_i[0]:
+                 self.set_volc(karg_i[1])
+             if 'phase' == karg_i[0]:
+                 self.set_phase(karg_i[1])
+             if 'export' == karg_i[0]:
+                 self.set_export(karg_i[1])
+                          
+          if self.reuss & self.bdir:
+             self.set_reuss(False)
+             print("\n*** Warning:\nincompatible Reuss and bulk_dir options")
+             print("bulk_dir computation is chosen")
+           
+          if self.export & (self.mqm==''):
+             self.set_export(False)
+             print("\n*** Warning: No phase defined for export")                               
           
       def reset(self):
           self.tmin=100.
@@ -9022,8 +9109,7 @@ def einstein_fun(tt,eps):
     return apfu*3*avo*kb*((eps/tt)**2)*np.exp(eps/tt)/((np.exp(eps/tt)-1)**2)
 
 def einstein_2_fun(tt,eps1,eps2):
-    
-    
+      
     f1=apfu*3*avo*kb/2.
     f2=((eps1/tt)**2)*np.exp(eps1/tt)/((np.exp(eps1/tt)-1)**2)
     f3=((eps2/tt)**2)*np.exp(eps2/tt)/((np.exp(eps2/tt)-1)**2)
@@ -9515,7 +9601,7 @@ def main():
     global plot, direct, zp, ac_approx,upl, upl, flag_upl
     
     ctime=datetime.datetime.now()
-    version="2.8.0 - 12/10/2022"
+    version="2.8.1 - 18/10/2022"
     print("This is BMx-QM program, version %s " % version)
     print("Run time: ", ctime)
     
@@ -9626,14 +9712,57 @@ def main():
                   rspace=True
                else:
                   rspace=False
-               exec(i_instr)
+               if i_instr[0:6] == "import":
+                  file_name=i_instr.split()[1]
+                  file=path+'/'+file_name
+                  import_file(file)
+               else:   
+                  exec(i_instr)
                if rspace:
                    print("")
     
     if exe_flag:
        sys.stdout = sys.__stdout__               
        input("Input ENTER to exit\n")  
+       
+def import_file(file):
+       
+    if not os.path.isfile(file):
+        print("\n**** Warning: File %s not found" % file)
+    else:
+        instr=np.array([]) 
+        with open(file) as iq:
+            input_str=''
+            while (input_str != 'END'):
+              input_str=iq.readline().rstrip()
+              if input_str !='':
+                 l0=input_str[0]
+                 if l0 !='#':
+                    instr=np.append(instr,input_str)
+            
+        instr=instr[:-1]
+        len_instr=len(instr)
+        
+        if len_instr > 0:
+           print("Instructions from %s file will be executed:\n" % file)
+           [print(i_instr) for i_instr in instr]
+           print("-"*50)
+           print("") 
+           rspace=False
            
+           for i_instr in instr:
+              
+               if not (i_instr[0:3] == "rem"): 
+                  print("")
+                  print(i_instr)
+                  rspace=True
+               else:
+                  rspace=False
+                  
+               exec(i_instr)
+               if rspace:
+                   print("")       
+
 if __name__=="__main__":
     main()
     
