@@ -73,7 +73,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import curve_fit
 
-from IPython import get_ipython
+# from IPython import get_ipython
 
 # get_ipython.run_line.magic('cls')
 # get_ipython().magic('reset -sf')
