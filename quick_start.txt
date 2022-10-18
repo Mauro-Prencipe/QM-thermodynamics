@@ -3,6 +3,14 @@
 # List of instructions to be executed
 # The file MUST be closed by the keyword END
 # Lines beginning with '#' or blanck lines are ignored
+# An 'import' instruction will execute all of the 
+#    instructions cointained in the file whose name is 
+#    written in the same row of the import keyword; such
+#    file must exist in the folder containing the data, and
+#    it has the same structure of the present file, but
+#    it cannot contain other 'import' commands. 
+#    Like the present one, the imported files must be
+#    closed by the keyword END
 
 pyrope
 
