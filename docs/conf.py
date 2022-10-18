@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('.'))
 # -- Project information -----------------------------------------------------
 
 project = 'QM-Thermodynamics'
-copyright = '2021, Mauro Prencipe'
+copyright = '2022, Mauro Prencipe'
 author = 'Mauro Prencipe'
 
 # The full version, including alpha/beta/rc tags
-release = '2.4.1'
+release = '2.8.1'
 
 
 # -- General configuration ---------------------------------------------------
