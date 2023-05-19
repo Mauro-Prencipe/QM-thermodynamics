@@ -1,7 +1,7 @@
 import os
+import sys
 import numpy as np 
 import scipy
-import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -9,6 +9,8 @@ import pandas as pd
 from scipy import integrate
 
 path='output'
+
+exe_path=os.getcwd()
 
 if os.path.isfile('path_file.dat'):
    path_file=open('path_file.dat', 'r')
@@ -211,6 +213,40 @@ class mineral:
         g=self.g_tp(tt,pp)
         s=self.s_tp(tt,pp)
         return g+tt*s
+    
+    def pressure_vt(self, temp, volume, pmin=0., pmax=30., npp=40, p_del=1.):
+        p_list=np.linspace(pmin, pmax, npp)
+        v_list=np.array([self.volume_p(temp, pi) for pi in p_list])
+        v_diff=np.abs(v_list-volume)
+        ipos=np.argmin(v_diff)
+        p_approx=p_list[ipos]
+        
+        p_min=p_approx-p_del/2
+        p_max=p_approx+p_del/2
+        if p_min <= 0.:
+           p_min=0.
+        
+        p_list=np.linspace(p_min, p_max, np.int(npp/2))
+        v_list=np.array([self.volume_p(temp, pi) for pi in p_list])
+        v_diff=(v_list-volume)**2
+        
+        fit_p=np.polyfit(p_list, v_diff, 2)
+        fit_der=np.polyder(fit_p, 1)
+        
+        press=-1*fit_der[1]/fit_der[0]
+        
+        return press
+    
+    def helm_vt(self, temp, volume, pmin=0., pmax=30., npp=40, p_del=2):
+        
+        pressure=self.pressure_vt(temp, volume, pmin, pmax, npp, p_del)
+        gibbs=self.g_tp(temp, pressure)
+        pv=1e4*pressure*volume
+        helm=gibbs-pv
+        
+        return helm, gibbs, pressure
+        
+        
 
 latex=latex_class()
 name_list=name_data()
@@ -235,6 +271,9 @@ jeff_fe=mineral("Fe-jeffbenite", "jeff_fe")
 jeff_fe3p=mineral("Fe3p-jeffbenite", "jeff_fe3p")
 jeff_feb=mineral("Feb-jeffbenite", "jeff_feb")
 zrc=mineral("Zircon", "zrc")
+diam=mineral("Diamond", "diam")
+tui=mineral("Tuite", "tui")
+flo=mineral("Florencite", "flo")
 
 def export(mineral_nick):
     
@@ -577,7 +616,7 @@ def import_database():
         list_al.append(vi)    
         
     line=''
-    with open('perplex_db.dat') as f:
+    with open(exe_path+'/perplex_db.dat') as f:
          jc=0
          l0=['']
          while True:

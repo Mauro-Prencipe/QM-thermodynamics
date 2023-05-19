@@ -1,13 +1,13 @@
 # Anharmonic correction to vibrational frequencies
 
-# Version 1.1 - 16/07/2020
+# Version 2.0 - 05/05/2023
 
 
 # The file anharm_path.txt must be present in the root folder (the
 # one containing the program). The content of anharm_path.txt is the name
 # of the folder containing the data (usually, the folder relative to
 # the phase to be investigated). Such name is assigned to the abs_path
-# variable
+# variable.
 
 # Input file: input_anharm.txt (under the abs_path folder)
 
@@ -22,11 +22,14 @@
 #  4) order of the polynomial used to fit the Helmholtz 
 #         free energy as a function of V and T. The unit
 #         of the computed free energy is the hartree. 
-#  5) number of lines containing volumes and harmonic frequencies
+#  5) name of the file containing volumes and harmonic frequencies
 #     for which the computation of the Helmholtz energy follows the 
 #     harmonic approximation
-#     If this number is 0, the input ends here; otherwise:
-#  6) and following lines: volumes (A^3) and harmonic frequencies (cm^-1). 
+#     If no harmonic frequencies has to be used, this line must contain the
+#     keyword 'None' (or 'none') 
+#
+#  In case the 5^th line of the file above is not 'None', the indicated file
+#  must contain a list of volumes (A^3) and harmonic frequencies (cm^-1). 
 #
 # The output file contains the power of the fitting polynomial
 # together with the optimized coefficents to reconstruct the
@@ -49,18 +52,43 @@
 #                 energies from the SCANMODE's are stored, as 
 #                 they are copied and pasted from the CRYSTAL
 #                 output
-# 4) files whose names are stored in the input.txt file. 
+# 4) File anh.txt containing the name(s) of the file(s) to be read by
+#                 the bm3_thermal_2 program. 
 
 # NOTE: in order to be used with the BM3_thermal_2 program,
 # fits from more than one normal modes must be of he same order
-# All the output files produced here must be copied in the relevant 
+# All the output files produced here are copied in the relevant 
 # input folder specified for the BM3_thermal_2. 
 # The Anharmonic correction in BM3_thermal_2 program is activated
 # by the ANH keyword in the input file for that program.
 
+# In addition to the variational procedure for the computation of the 
+# anharmonic vibrational energy levels, a direct solution of the Schroedinger
+# equation algorithm has been implemented. To compute the F(V,T) function
+# by using this method, the function helm_fit must be invoked by setting to True
+# the 'direct' parameter. See the help to the drc instance of the AnhDirect class
+# for more information.
+
 # Usage: 
 # At the simplest level, just use the helm_fit() function to read 
 # the all the input and to make the relevant fits. 
+# To compute F(V,T) by the direct algorithm use 
+# helm_fit(direct=True)
+
+# To compare results from the variational method and from the direct one
+# use the function 'compare' by specifying the volume number for the 
+# computation.
+
+# To compute frequencies with the direct method for a given volume with number
+# iv, follow the instructions
+#
+# set_up()
+# start_fit(iv)
+# drc.set_direct()
+# energy_anh(iv)
+# frequencies(iv) 
+
+#--------------------------
 
 # from IPython import get_ipython
 # get_ipython().magic('clear')
@@ -72,6 +100,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import curve_fit
+import scipy.linalg as lin 
 
 # from IPython import get_ipython
 
@@ -90,6 +119,98 @@ class data_flag():
     def __init__(self):
         self.comp=np.array([],dtype=bool)
         self.setup=False
+        
+class AnhDirect():
+    """
+    Direct solution of the Schroedinger equation
+    
+    The Schroedinger equation for the 1D anharmonic potential is directly
+    solved by a numerical method using sparse matrix algebra.
+    Relevant parameters for the calculation are: the number of points (N) at 
+    which the L interval for the numerical integration is sampled, and
+    the length L itself. The computation is performed by setting the boundary
+    conditions as psi(-L/2)=psi(L/2)=0, so that if the distance L is not 
+    large enough compared to the length scale of the oscillator, a 'particle in
+    the box energy' spectrum will arise to affect the computed oscillator energy 
+    levels.
+    
+    The length parameter L is determined by the factor 'fact' which, by default, 
+    is set to 1; the interval for the integration is then 
+    [-fact*0.5, fact*0.5]
+    
+    The default value for 'fact' proved to be suitable for low frequency 
+    vibrational modes. For higher frequency modes, a larger value of such
+    parameter is generally required. The parameter can be modified by means
+    of the set_fact method.
+    
+    The default value for N in 4000. Use the method set_N to modify it.
+    
+    The potential from the SCANMODE CRYSTAL calculation is fitted by a polinomial
+    function of degree 4. Use the method set_deg to change such degree
+    """
+    def __init__(self):
+        self.N=4000
+        self.fact=1.
+        self.dy=self.fact/self.N
+        self.y=np.linspace(-0.5*self.fact,self.fact*0.5, self.N+1)
+        self.deg=4
+        self.flag=False
+        
+    def set_N(self, n):
+        self.N=n
+        self.y=np.linspace(-0.5*self.fact, self.fact*0.5, self.N+1)
+        self.dy=self.fact/self.N
+        print("Direct solution of the Schroedinger equation. Num. of points: %6i" % self.N)
+        
+    def set_fact(self, fact):
+        self.fact=fact
+        self.dy=self.fact/self.N
+        self.y=np.linspace(-0.5*self.fact,self.fact*0.5, self.N+1)
+        print("Length factor set to %5.2f" % self.fact)
+        
+    def set_direct(self):
+        self.flag=True
+        
+    def set_deg(self, deg):
+        self.deg=deg
+        
+    def reset_direct(self):
+        self.flag=False
+        
+    def diag(self,iv):
+        pot=self.potential(iv)
+        self.d=(1/self.dy)**2 + pot[1:-1]
+        
+    def extra(self):
+        self.exd = -1./(2.*self.dy**2)*np.ones(len(self.d)-1)
+        
+    def potential(self, iv):
+        q_m=bohr*anh[iv].q 
+        min_q=np.min(q_m)
+        max_q=np.max(q_m)
+        L=(max_q-min_q)
+        y=-0.5+(q_m-min_q)/L  
+        self.L2=L**2
+        self.red=anh[iv].red        
+        pot=anh[iv].e
+        pot=conv*pot*self.red*self.L2/ht**2
+        pot=pot-np.min(pot)
+        fit=np.polyfit(y, pot, self.deg) 
+        return np.polyval(fit, self.y)
+    
+    def compute(self, iv):
+        self.diag(iv)
+        self.extra()
+        w,v=lin.eigh_tridiagonal(self.d, self.exd, eigvals_only=False)
+        w=w/(self.red*self.L2)
+        w=w*ht**2
+        return w,v,self.y
+
+    def info(self):
+        print("Direct Solution of the Schroedinger equation")
+        print("Number of points: %5i" % self.N)
+        print("Factor for the determination of L: %5.2f" % self.fact)
+        
         
 def load_files():
    '''
@@ -189,9 +310,6 @@ def start_fit(iv, npt=40):
   fit_quad,_ =curve_fit(energy_quad,q,e)
   
   anh[iv].par=fit_par
-
-#  anh[iv].par=fit_quad
-#  anh[iv].par=np.append(anh[iv].par, [0., 0.])
   
   min_q=np.min(q)
   max_q=np.max(q)
@@ -220,8 +338,7 @@ def start_fit(iv, npt=40):
   d3l=anh[iv].par[2]
   anh[iv].zero_l=anh[iv].par[0]
   anh[iv].om=np.sqrt(anh[iv].ko/anh[iv].red)
-  anh[iv].nu=anh[iv].om/(2*np.pi*csl)
-  
+  anh[iv].nu=anh[iv].om/(2*np.pi*csl)  
   anh[iv].lam=lam*conv/(bohr**4);                 
   anh[iv].d3l=d3l*conv/(bohr**3);                  
   anh[iv].fact=(ht/(2*anh[iv].red*anh[iv].om))**2;        
@@ -230,12 +347,12 @@ def start_fit(iv, npt=40):
   anh[iv].factd_1=iun*anh[iv].factd*anh[iv].d3l;
   anh[iv].h_omeg=ht*anh[iv].om;      
   
-def diag_n(iv, n):
- dn=(anh[iv].fact_1*6*(n**2+n+1/2))+(anh[iv].h_omeg*(n+1/2));
- return dn
+def diag_n(iv, n): 
+     dn=(anh[iv].fact_1*6*(n**2+n+0.5))+(anh[iv].h_omeg*(n+0.5));
+     return dn
 
 def extra_1(iv, n):
-   ext1=-3*anh[iv].factd_1*(n+1)*(np.sqrt(n+1));
+   ext1=-3*anh[iv].factd_1*((n+1)**1.5)
    return ext1
 
 def extra_2(iv, n):
@@ -266,21 +383,25 @@ def H_matrix(iv):
             elif jj==ii-4:
                H[jj][ii]=extra_4(iv, jj)
             elif jj==ii+1:
-               H[jj][ii]=extra_1(iv, ii)
+               H[jj][ii]=+1*extra_1(iv, ii)
             elif jj==ii-1:
                H[jj][ii]=-1*extra_1(iv, jj)
             elif jj==ii+3:
-               H[jj][ii]=extra_3(iv, ii)
+               H[jj][ii]=+1*extra_3(iv, ii)
             elif jj==ii-3:
                H[jj][ii]=-1*extra_3(iv, jj)   
                
     return H
 
 def energy_anh(iv):
-     H_mat=H_matrix(iv)
-     vals=np.linalg.eigvals(H_mat)
-     vals=np.real(vals)
-     anh[iv].vals=np.sort(vals)
+     if not drc.flag: 
+        H_mat=H_matrix(iv)
+        vals=np.linalg.eigvals(H_mat)
+        vals=np.real(vals)
+        anh[iv].vals=np.sort(vals)
+     else:
+        anh[iv].vals,_,_=drc.compute(iv) 
+        
      anh[iv].e_zero=anh[iv].zero_l+anh[iv].vals/conv
     
 def partition(iv, temp, nl=10):
@@ -389,6 +510,7 @@ def check_partition(iv, temp, from_plot=False):
         print("Warning: Q-SCAN out of range")
         
 def frequencies(iv, mxl=5, spect=False):
+    energy_anh(iv)
     delta_e=np.gradient(anh[iv].vals)
     freq=delta_e/(csl*h)
     if not spect:
@@ -400,8 +522,10 @@ def frequencies(iv, mxl=5, spect=False):
     else:
         return freq
 
-def computation(iv):
+def computation(iv, direct=False):
     
+    if direct:
+       drc.set_direct() 
     if not flag.setup:
         set_up()
         
@@ -409,18 +533,18 @@ def computation(iv):
     energy_anh(iv)
     flag.comp[iv]=True
     
-def start(temp=300):
+def start(temp=300, direct=False):
     set_up()
     for ii in np.arange(glob.nvol):
         print("\n--------------\nVolume N. %3i" % ii)
         print("Volume %6.3f A^3, harmonic freq.: %6.2f cm^-1" %\
              (anh[ii].vol, anh[ii].h_freq)) 
         print("Scan data file:  %s" % glob.scan_name[ii])
-        computation(ii)
+        computation(ii, direct)
         check_partition(ii,temp)
         frequencies(ii)
 
-def helm_fit(temp=300):
+def helm_fit(temp=300, direct=False):
     """
     Main function of the program: the produces the final result of
     the F(V,T) surface. 
@@ -429,6 +553,12 @@ def helm_fit(temp=300):
         temp: temperature (in K) used in the test for convergence
               of the partition function (default: 300 K)
     """
+    
+    if direct:
+       drc.flag=True
+    else:
+       drc.flag=False
+       
     start(temp)    
     tl=np.linspace(tmin,tmax,nt)
     vl=glob.volumes  
@@ -539,8 +669,7 @@ def helm_fit(temp=300):
     
     print("Mean error from fit: %6.2e" % mean_error)
     print("Maximum error: %6.2e" % max_error)
-    
-    
+        
 def helm_func(data,*par):
     vv=data[0]
     tt=data[1]
@@ -603,6 +732,7 @@ def plot_levels(iv, max_lev, qmin=0., qmax=0., tmin=300, tmax=1000, nt=5, \
            prob=np.append(prob, iprob)
            
     prob=prob.reshape(nt,max_lev)
+    pd.set_option('display.float_format', lambda x: '%5.2f' % x) 
     df=pd.DataFrame(prob,index=t_list.round(1))
     df=df.T
     print("Energy levels occupation (probabilities) at several")
@@ -831,13 +961,59 @@ def helm_harm(freq, temp, prt=False):
     else:
         return free
     
+def compare(iv, mxl=10):
+    drc.reset_direct()
+    set_up()
+    start_fit(iv)
+    energy_anh(iv)
+    
+    variational=anh[iv].vals[0:mxl]
+
+    w,_,_=drc.compute(iv)
+    direct=w[0:mxl]
+    
+    pd.set_option('display.float_format', lambda x: '%0.4e' % x)    
+    print("")
+    df=pd.DataFrame({
+                     ' Variational': variational,
+                     '  Direct: ': direct})
+    print(df)
+ 
+def direct_plot(iv, lev_list):
+    set_up()
+    start_fit(iv)
+    w,v,y=drc.compute(iv)
+    vt=v.T
+
+    for il in lev_list:
+        plt.figure()
+        plt.plot(y[1:-1], vt[il]**2)
+        plt.show()
+        
+def frequencies_compare(iv, mxl=5):
+    set_up()
+    start_fit(iv)
+    drc.set_direct()
+    energy_anh(iv)
+    delta_e=np.gradient(anh[iv].vals)
+    freq_direct=delta_e/(csl*h)
+    drc.reset_direct()
+    energy_anh(iv)
+    delta_e=np.gradient(anh[iv].vals)
+    freq=delta_e/(csl*h)
+    print("\nFrequencies (cm^-1) from the first %2i levels\n" % mxl)
+    il=0
+    while il <= mxl:
+        print(" %6.2f  %6.2f" % (freq[il], freq_direct[il]))
+        il=il+1  
+    
     
 def main():
     global ctime, h, k, r, csl, avo, ht, bohr, uma, iun, conv, anh
     global glob, flag, abs_path, path, outfile, temp, power_limit
-    global tmin, tmax, nt, Version, pv, pt, e_fact, ez_fact
+    global tmin, tmax, nt, Version, pv, pt, e_fact, ez_fact, drc
     
-    Version="1.1 - 16/07/2020"
+    Version="2.0 - 05/05/2023"
     ctime=datetime.datetime.now()
     print("Run time: ", ctime)
     
@@ -856,7 +1032,8 @@ def main():
         
     glob=data_class(200)
     flag=data_flag()
-
+    drc=AnhDirect()
+    
     fi=open('anharm_path.txt')
     abs_path=fi.readline().rstrip()
     fi.close()
@@ -883,7 +1060,6 @@ def main():
         pt=int(power_limit[1])
         
     harm_file=fi.readline().rstrip()
-    print(harm_file)
     
     flag_h=False
     if (harm_file != 'None') & (harm_file != 'none'):
@@ -921,21 +1097,6 @@ def main():
     
     load_files()
     anh=np.ndarray((glob.nvol,), dtype=object)
-
         
 if __name__=="__main__":
     main()
-
-    
-    
-           
-        
-           
-    
-    
-    
-    
-    
-    
-    
-
