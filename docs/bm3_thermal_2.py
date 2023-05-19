@@ -43,13 +43,15 @@ from plot import plot_class
 from mineral_data import mineral, load_database, equilib, reaction,\
      pressure_react, export, field, import_database, name_list
 from mineral_data import ens, cor, py, coe, q, fo, ky, sill, andal, per, sp, \
-     mao, fmao, stv, cc, arag, jeff, jeff_fe, jeff_fe3p, jeff_feb, zrc
+     mao, fmao, stv, cc, arag, jeff, jeff_fe, jeff_fe3p, jeff_feb, zrc, diam, \
+     tui, flo
+     
 
 warnings.filterwarnings('ignore')
 
 import_database()
 
-mpl.rcParams['figure.dpi']= 80
+mpl.rcParams['figure.dpi']=80
 
 class latex_class():
     """
@@ -1392,7 +1394,7 @@ class disp_class():
         for it in tl:
             ifree=self.free(it,vv)
             free=np.append(free,ifree)
-            
+              
         fit=np.polyfit(tl,free,fit_deg)
         self.fit=fit
         
@@ -2171,6 +2173,7 @@ class UploadMineral():
           self.noeos=True
           self.mqm=''
           self.export=False
+          self.norestore=False
           
       def set_t_range(self, trange):
           self.tmin=trange[0]
@@ -2214,6 +2217,9 @@ class UploadMineral():
       def set_export(self, exp):
           self.export=exp
           
+      def set_norestore(self, norest):
+          self.norestore=norest
+          
       def set_parameters(self, **kwargs):
           """
           Set parameters for the compute method by using a single set method.
@@ -2240,7 +2246,7 @@ class UploadMineral():
                      an bulk_dir computation. If False, the function bulk_serie 
                      is used. (Default False)
               noeos: relevant if reuss=True or alpha_method='k_alpha_dir' (default True)
-              bdir:  the bulk_dir function is used to compute dK/dT (default True)
+              bdir:  the bulk_dir function is used to compute dK/dT (default False)
               t_bulk:  maximum temperature for dK/dT fit (relevant if reuss or bdir are True)
                        if t_bulk=0., t_bulk=tmax (default: 0.)
               HTlim: Temperature at which the Dulong-Petit limit for Cv
@@ -2258,7 +2264,9 @@ class UploadMineral():
                      (default: False)
               export: if True, the computed data are exported in the database
                       file with the appropriate formatting the the usage
-                      in the Perplex program (default False)        
+                      in the Perplex program (default False)  
+              norestore: if True, excluded modes are not restored for the
+                         calculation of entropy and Cp (default False)
           """
           l_arg=list(kwargs.items())
           
@@ -2289,6 +2297,8 @@ class UploadMineral():
                  self.set_phase(karg_i[1])
              if 'export' == karg_i[0]:
                  self.set_export(karg_i[1])
+             if 'norestore' == karg_i[0]:
+                 self.set_norestore(karg_i[1])
                           
           if self.reuss & self.bdir:
              self.set_reuss(False)
@@ -2316,6 +2326,7 @@ class UploadMineral():
           self.noeos=True
           self.mqm=''
           self.export=False
+          self.norestore=False
           
       def compute(self, **kwargs):
           """
@@ -2344,7 +2355,7 @@ class UploadMineral():
                      an bulk_dir computation. If False, the function bulk_serie 
                      is used. (Default False)
               noeos: relevant if reuss=True or alpha_method='k_alpha_dir' (default True)
-              bdir:  the bulk_dir function is used to compute dK/dT (default True)
+              bdir:  the bulk_dir function is used to compute dK/dT (default False)
               t_bulk:  maximum temperature for dK/dT fit (relevant if reuss or bdir are True)
                        if t_bulk=0., t_bulk=tmax (default: 0.)
               HTlim: Temperature at which the Dulong-Petit limit for Cv
@@ -2363,6 +2374,8 @@ class UploadMineral():
               export: if True, the computed data are exported in the database
                       file with the appropriate formatting the the usage
                       in the Perplex program (default False)
+              norestore: if True, the excluded modes are not restored for the
+                         calculation of entropy and Cp (default False)
                      
           Notes:
               To set tmin, tmax, points, use the method set_t_range whose argument
@@ -2401,7 +2414,8 @@ class UploadMineral():
                'bdir': self.bdir,
                'noeos': self.noeos,
                'mqm': self.mqm,
-               'export': self.export}
+               'export': self.export,
+               'norestore': self.norestore}
                         
           for karg_i in l_arg:
              if 'trange' == karg_i[0]:
@@ -2430,6 +2444,8 @@ class UploadMineral():
                 self.set_phase(karg_i[1])
              if 'export' == karg_i[0]:
                 self.set_export(karg_i[1])
+             if 'norestore' == karg_i[0]:
+                 self.set_norestore(karg_i[1])
                             
           if self.reuss & self.bdir:
              self.set_reuss(False)
@@ -2496,6 +2512,9 @@ class UploadMineral():
              print("\nMineral phase: %s\n" % self.mqm)
           else:
              print("No phase selected\n")
+            
+          if self.norestore:
+             print("\nExcluded modes will not be restored for the calculation of entropy and Cp")
                       
           
       def quality_of_fit(self, tmax, pmax, mqm, tmin=300., pmin=0., npp=10, nt=10, n_line=10):
@@ -2673,34 +2692,51 @@ class UploadMineral():
           else:
               if mqm !='':
                  v0=volume_correction.v0_init
-              
-          ex_internal_flag=False
-          if exclude.flag & (not anharm.flag):
-              exclude.restore()
-              ex_internal_flag=True
-              print("\nWarning ** Excluded modes restored in order\nto "
-                    "correctly compute entropy and specific heat")
-              print("At the end of computation, exclusion of modes "
-                    "will be rectivated")
+          
+          ex_internal_opti_flag=False
+          ex_internal_disp_flag=False
+          if not self.norestore: 
+             if exclude.flag & (not anharm.flag):
+                exclude.restore()
+                ex_internal_opti_flag = True
+                
+             if disp.ex_flag:
+                disp.free_exclude_restore()
+                disp.free_fit_vt()
+                ex_internal_disp_flag = True
+                
+             print("\nWarning ** Excluded modes restored in order\nto "
+                       "correctly compute entropy and specific heat")
+             print("At the end of computation, exclusion of modes "
+                       "will be rectivated")
+          else:
+             print("\nExcluded modes are not restored for the calculation of entropy and Cp") 
+             
            
           if upl.reuss:
               volume_ctrl.set_shift(0.)
               vol=volume_dir(298.15,0)
-              s0, dum=entropy_v(298.15,vol)
+              s0=direct.entropy(298.15,0)
           else:
               s0,dum=entropy_p(298.15,0.0001,prt=False)
           
-          if ex_internal_flag:
+          if ex_internal_opti_flag:
               exclude.on()
-              ex_internal_flag=False
+              ex_internal_opti_flag=False
+              
+          if ex_internal_disp_flag:
+              disp.ex_flag=True
+              disp.free_exclude(disp.excluded_list)
+              disp.free_fit_vt()
+              ex_internal_disp_flag=False    
           
           mdl=1
           if self.model==2:
              mdl=2
           if self.HTlim > 0.1:
-             fit_cp=cp_serie(self.tmin,self.tmax,self.points,0.0001,HTlim=self.HTlim, t_max=self.t_max, g_deg=self.g_deg, model=mdl, prt=False)
+             fit_cp=cp_serie(self.tmin,self.tmax,self.points,0.0001, dr=True, HTlim=self.HTlim, t_max=self.t_max, g_deg=self.g_deg, model=mdl, prt=False)
           else:
-             fit_cp=cp_serie(self.tmin,self.tmax,self.points,0.0001, g_deg=self.g_deg, prt=False)
+             fit_cp=cp_serie(self.tmin,self.tmax,self.points,0.0001, dr=True, g_deg=self.g_deg, prt=False)
           
           if mqm !='':   
              eval(mqm).load_ref(v0,g0,s0)
@@ -2713,8 +2749,38 @@ class UploadMineral():
           reset_fix()
           if flag_int:
               set_fix(kp_original)
-                 
+              
+
+class EosFit():
+      """
+      Sets up the T-range interval to be used in the eosfit_dir calculations 
+      """
+      def __init__(self):
+          self.eos_t_flag=False
+    
+      def set_t(self, tmin, tmax, nt):
+          """
+          Args:
+              tmin: minimum temperature of the interval (in K)
+              tmax: maximum temperaure of the interval (in K)
+              nt:   number of points in the interval  
+          """
+          self.tmin=tmin
+          self.tmax=tmax
+          self.nt=nt
+          self.eos_t_flag=True
           
+      def reset(self):
+          self.eos_t_flag=False
+                 
+      def info(self):
+          if self.eos_t_flag:
+             print("\nTemperature values for eosfit_dir calculations:")
+             print("T_min: %5.2f,  T_max: %5.2f (K),   number of points: %4i" % (self.tmin, self.tmax, self.nt))
+          else:
+             print("*** Warning: T range not defined")
+             
+             
 # reads in data file. It requires a pathname to the folder
 # containing data
 
@@ -2722,8 +2788,8 @@ def read_file(data_path):
    global volume, energy, deg, data_vol_freq, num_set_freq
    global num_mode, ini, int_set, int_mode, data_vol_freq_orig
    global temperature_list, pcov, data_freq, path, data_file
-   global data, zu, apfu, power, lpow, power_a, lpow_a, mass
-   global flag_eos, flag_cp, flag_alpha, flag_err, flag_exp, flag_mass
+   global data, zu, apfu, fwg, power, lpow, power_a, lpow_a, mass
+   global flag_eos, flag_cp, flag_alpha, flag_err, flag_exp, flag_mass, flag_fwg
    global data_cp_exp, data_p_file, static_e0
 
    flag_eos=False
@@ -2735,8 +2801,8 @@ def read_file(data_path):
    flag_mass=False
    flag_super=False
     
-   flag_static, flag_volume, flag_freq, flag_ini, flag_fu, flag_set, flag_p_static\
-                 = False, False, False, False, False, False, False
+   flag_static, flag_volume, flag_freq, flag_ini, flag_fu, flag_set, flag_p_static,\
+                 flag_fwg = False, False, False, False, False, False, False, False
    path=data_path
    input_file=data_path+'/'+'input.txt'
    line_limit=100
@@ -2784,6 +2850,9 @@ def read_file(data_path):
             elif l0=='FU':
                zu=fi.readline()
                flag_fu=True
+            elif l0=='FWG':
+               fwg=fi.readline()
+               flag_fwg=True
             elif l0=='MASS':
                 mass=fi.readline()
                 flag_mass=True
@@ -2921,6 +2990,11 @@ def read_file(data_path):
    zus=list(map(int,zu.rstrip().split()))
    zu=zus[0]
    apfu=zus[1]
+   
+   if flag_fwg:
+      fwg=float(fwg.rstrip())
+   else:
+      fwg=0.
    
    if flag_fit:
       fit_type=fit_type.rstrip()
@@ -3636,6 +3710,9 @@ def pressure_dir(tt,vv):
         tt: temperature (K)
         vv: volume (A^3)
     """
+    
+    tt=float(tt)
+    vv=float(vv)
     
     deg=pr.degree_v
     
@@ -4602,7 +4679,7 @@ def bulk_modulus_p_serie(tini, tfin, nt, pres, noeos=False, fit=False, type='pol
     
     reset_fix()
     
-    if fit:
+    if fit & (method=='poly'):
        print("\nCoefficients of the fit: (degree: %1i)" % deg) 
        print(np.array2string(fit_par, formatter={'float_kind': '{0:.3e}'.format})) 
     
@@ -4843,12 +4920,13 @@ def p_static(nvol=50, v_add=[], e_add=[]):
     plt.title("E(V) curves")
     plt.show(block=False)
     
-    plt.figure()
-    plt.plot(vol_range,delta,"k-")
-    plt.xlabel("Volume (A^3)")
-    plt.ylabel("E (hartree)")
-    plt.title("Pstatic and static energy difference")
-    plt.show(block=False)
+    if verbose.flag:
+       plt.figure()
+       plt.plot(vol_range,delta,"k-")
+       plt.xlabel("Volume (A^3)")
+       plt.ylabel("E (hartree)")
+       plt.title("Pstatic and static energy difference")
+       plt.show(block=False)
     
     delta=abs(delta)
     
@@ -4859,7 +4937,7 @@ def p_static(nvol=50, v_add=[], e_add=[]):
     mx=delta[imx]
     vx=vol_range[imx]
     
-    print("Mean discrepancy: %6.3e hartree (%5.1f J/mole)" % (mean, mean_j))
+    print("\nMean discrepancy: %6.3e hartree (%5.1f J/mole)" % (mean, mean_j))
     print("Standard deviation: %4.1e hartree" % std)
     print("Maximum discrepancy %6.3e hartree for a volume of %6.2f A^3" % (mx, vx))    
        
@@ -4871,7 +4949,6 @@ def static_pressure_bm3(vv, prt=True):
         vv: volume
     """
           
-    static(plot=False, prt=prt)
     k0=info.popt[1]
     kp=info.popt[2]
     v0=info.popt[0]
@@ -6442,7 +6519,7 @@ def compare_exp(graph_exp=True, unit='j' ,save="",dpi=300,**kwargs):
            flag_warning.value=True
       
       
-def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=False, \
+def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=False, dr=False,\
              fit=True, t_max=0., graph=True, save='', tex=False, title=True, **kwargs):
     
     """
@@ -6526,10 +6603,13 @@ def cp_serie(tini,tfin,points,pp, HTlim=0., model=1, g_deg=1, plot=False,prt=Fal
     t_serie=np.linspace(tini,tfin,points)
     cp_serie=[]
     for ict in t_serie:
-        if fixpar:
-            cpi, ent_i=cp(ict,pp,plot,prt_c,fix=fix_value)
-        else:
-            cpi, ent_i=cp(ict,pp,plot,prt_c)
+        if dr:
+           cpi=direct.cp(ict,pp)
+        else: 
+           if fixpar:          
+               cpi, ent_i=cp(ict,pp,plot,prt_c,fix=fix_value)
+           else:
+               cpi, ent_i=cp(ict,pp,plot,prt_c)
         cp_serie=np.append(cp_serie,cpi)
     if dlflag:
        cp_serie=np.append(cp_serie,cp_lim)
@@ -6754,7 +6834,7 @@ def gibbs_p(tt,pp,**kwargs):
         f_energy=free_v(tt,vol[0])
     
     if disp.flag:
-        if not disp.themo_vt_flag:
+        if not disp.thermo_vt_flag:
            f_disp=disp.free_func(tt)+v_bm3(vol[0],*info.popt)*disp.molt
         else:
            f_disp=disp.free_vt(tt,vol)+v_bm3(vol[0],*info.popt)*disp.molt 
@@ -7121,7 +7201,7 @@ def eos_temp(tt,prt=True,update=False,kp_only=False, save=False, \
         print(" %5.3f   %5.2f" % (vp_i, pv_i))
 
 
-def eosfit_dir(file_name, pmax=0., unit=False, scale=0.): 
+def eosfit_dir(file_name, pmin=0., pmax=0., volume_max=0., unit=False, scale=0.): 
     """
     Writes a PVT file to be used with EosFit
     Temperature data are in the temperature_list list
@@ -7133,6 +7213,9 @@ def eosfit_dir(file_name, pmax=0., unit=False, scale=0.):
               (in GPa); if pmax=0. (default) there is no limit
               in the pressure (which is determined by the input volume
               range).
+        pmin: Minimum pressure to be stored in the PVT file (default 0.)
+        volume_max: if gt. 0, this is the maximum volume to be considered
+                    in the calculation.
         scale: if scale > 0., a scale factor is applied to the volume 
                values (default 0.) 
         
@@ -7146,14 +7229,24 @@ def eosfit_dir(file_name, pmax=0., unit=False, scale=0.):
        The computation of P(V,T) is performed without reference to 
        any EoS, as pressure at (V,T) is computed as numerical 
        derivative of F with respect to V at constant temperature.
+       
+    Note:
+       The method eosf.set_t can be used to set the T_range interval
+       on which the eosfit computation has to be done (instead of using
+       a TEMPERATURE keyword in the input file).
     """
     
     file_name=path+'/'+file_name
     
-    if not flag_eos:
-       print("\nWarning: set of temperatures for EoSFit output not defined")
-       print("Use TEMP keyword in input file")
+    if eosf.eos_t_flag:
+       eosf.info()
+       tt_list=np.linspace(eosf.tmin, eosf.tmax, eosf.nt)
+    else:   
+       if not flag_eos:
+          print("\nWarning: set of temperatures for EoSFit output not defined")
+          print("Use TEMP keyword in input file or the eosf.set_t method")
        return
+       tt_list=temperature_list
 
     if (not flag_poly.flag) and (not flag_spline.flag):
         war1="Warning: frequency fit is off; use of poly or spline fits"
@@ -7171,8 +7264,15 @@ def eosfit_dir(file_name, pmax=0., unit=False, scale=0.):
     volmin=min(volb)
     
     eos_data=np.array([])
-    for ti in temperature_list:
-        volmax=volume_dir(ti,0.)
+    
+    for ti in tt_list:
+        if volume_max > 0.1:
+           volmax=volume_max
+        elif pmin > 0.01:
+           volmax=volume_dir(ti,pmin)
+        else:
+           volmax=volume_dir(ti,0.)
+           
         if flag_volume_max.value:
             print("Warning: volume exceeds maximum set in volume_range")
             print("Temperature %4.2f, Volume %8.4f" % (ti, volmax))
@@ -7601,8 +7701,73 @@ def check_poly(ifr, save=False, title=True, tex=False):
     plt.show(block=False)
     latex.off()
     
-def frequency_p_range(ifr, pmin, pmax, npoint, dir=False, temp=298.15, degree=1, \
-                      title=True, tex=False, save=False):
+def mode_crossing(modes, title=True, tex=False, save=False, dpi=80, ext='png'):
+    """
+    Plot of the frequencies of modes as a function of volume in the same plot.
+    Useful to check for modes crossing.
+    
+    Args:
+        modes: list of modes to be plotted
+        title: if True, a title is shown
+        save: if True, the plot is saved in the file 'crossing_modes'
+        ext: extension of the file (relevant if save is True)
+        dpi: resolution of the saved plot (relevant if save=True)
+        tex: latex plotting
+        
+    Note:
+        if tex is True, dpi and ext parameters are overwritten by those
+        requested by the latex class
+    """
+    pol_stack=flag_poly.pol_stack
+    vol=np.linspace(min(data_vol_freq),max(data_vol_freq),pr.nvol)
+    
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ext=latex.get_ext()
+       ticksize=latex.get_tsize()
+       
+    leg="Modes N.: "
+    lnm=len(modes)
+    
+    for iq in range(lnm-1):
+        leg=leg + str(modes[iq]) + ", "
+        
+    leg=leg+str(modes[lnm-1])
+    
+    print("\nPlot of the frequencies of the modes ", modes)
+    plt.figure()
+    for ifr in modes:
+        freq=np.polyval(pol_stack[ifr],vol)
+        ifl=[]
+        
+        for ivol in int_set:
+            ifl=np.append(ifl,lo.data_freq[ifr,ivol+1])  
+        
+        plt.plot(vol,freq,"k-")
+        plt.plot(data_vol_freq,ifl,"k*")
+        
+    if latex.flag:
+       plt.xlabel("Volume (\AA$^3$)", fontsize=fontsize)
+       plt.ylabel("Frequency (cm$^{-1}$)", fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+    else:
+       plt.xlabel("Volume (A^3)")
+       plt.ylabel("Frequency (cm^-1)")
+    if title:
+       plt.title(leg)
+    if save:
+       filename=path+'/crossing_modes' + '.' + ext
+       plt.savefig(filename, dpi=dpi, bbox_inches='tight')
+       print("Figure saved as %s" % filename)
+            
+    plt.show(block=False)
+    
+    
+def frequency_p_range(ifr, pmin, pmax, npoint, out=False, dir=False, temp=298.15, degree=1, \
+                      title=True, tex=False, save=False, fit_out=False):
     """
     Frequency of a mode computed as a function of pressure in a given range,
     at a fixed temperature.
@@ -7612,12 +7777,15 @@ def frequency_p_range(ifr, pmin, pmax, npoint, dir=False, temp=298.15, degree=1,
         pmin, pmax, npoint: minimum and maximum pressure in the range (GPa), and
                             number of points
         temp: temperature (default 298.15 K)
+        out: if True, a pressure-frequency list is returned (default False)
         dir: if True, volume is computed through the volume_dir function;
              otherwise, the EoS-based new_volume function is used (default False)
         degree: degree of the fitting polynomial (default 1)
         title: if False, title of the plot is suppressed (default True)
         tex: if True, Latex output is used for the plot (default False)
         save: if True, the plot is saved (default False)
+        fit_out: if True, fit parameters of frequency versus pressure 
+                 are returned (default False)
         
     Note:
         A fit of the frequencies vs volume (either poly or spline) is required.
@@ -7676,7 +7844,7 @@ def frequency_p_range(ifr, pmin, pmax, npoint, dir=False, temp=298.15, degree=1,
         
     title="Mode number " + str(ifr)
     label="Fit (degree: "+str(degree)+")"
-    plt.figure()    
+    plt.figure()   
     plt.plot(npp, freq_p, "k*", label="Actual values")
     plt.plot(p_plot, f_plot, "k-", label=label)
     if latex.flag:
@@ -7702,6 +7870,14 @@ def frequency_p_range(ifr, pmin, pmax, npoint, dir=False, temp=298.15, degree=1,
     latex.off()
     
     print(fit_str)
+    
+    if out and (not fit_out):
+       return npp, freq_p 
+    elif fit_out and (not out):
+       return fit
+    elif fit_out and out:
+       return fit, npp, freq_p
+    
     
 def frequency_t_range(ifr, tmin, tmax, npoint, dir=False, pressure=0., degree=1, \
                       title=True, tex=False, save=False):
@@ -9016,17 +9192,18 @@ def einstein_t(tini, tfin, npoint, HT_lim=3000,dul=False,model=1):
        flag_int=True
        reset_fix()
     
-    if upl.bdir:
-       v0, k_gpa, kp=bulk_dir(298.15, out=True) 
-       print("\nbulk_dir computation of the Bulk modulus")
-    else:    
-       v0, k_gpa, kp=eos_temp(298.15,prt=False, update=True)
+
+    v0, k_gpa, kp=bulk_dir(298.15, out=True) 
+    print("\nbulk_dir computation of the Bulk modulus")
     
     set_fix(kp)
     print("Kp fixed to %4.2f" % kp)
     
-    vol=new_volume(298.15,0.0001)
-    ent, cve=entropy_v(298.15,vol[0])
+    vol=volume_dir(298.15,0.0001)
+    ent=direct.entropy(298.10, 0.)
+    cve=direct.cv(298.15, 0.)
+    
+#    ent, cve=entropy_v(298.15,vol)
     dp_limit=apfu*3*avo*kb                  # Dulong Petit limit
     emp=10636/(ent/apfu+6.44)               # Empirical Einstein T
     
@@ -9034,7 +9211,9 @@ def einstein_t(tini, tfin, npoint, HT_lim=3000,dul=False,model=1):
     cv_list=np.array([])
     
     for ti in t_range:
-        enti, cvi=entropy_v(ti, vol, plot=False, prt=False)
+        enti=direct.entropy(ti, 0.)
+        cvi=direct.cv(ti, 0.)
+#        enti, cvi=entropy_v(ti, vol, plot=False, prt=False)
         cv_list=np.append(cv_list, cvi)
         
     reset_fix()
@@ -9052,7 +9231,7 @@ def einstein_t(tini, tfin, npoint, HT_lim=3000,dul=False,model=1):
                       sigma=sigma, xtol=1e-15, ftol=1e-15)
     else:
        ein_fit, ein_cov=curve_fit(einstein_2_fun, t_range, cv_list, \
-                      sigma=sigma,p0=[emp,emp], xtol=1e-15, ftol=1e-15) 
+                      sigma=sigma,p0=[emp,emp], bounds=(0, 2000.), xtol=1e-15, ftol=1e-15) 
     
     t_range_new=np.linspace(tini,HT_lim,50)
     
@@ -9080,7 +9259,9 @@ def einstein_t(tini, tfin, npoint, HT_lim=3000,dul=False,model=1):
     cv_real=np.array([])
     cv_ein=np.array([])
     for ti in t_table:
-        enti, cri=entropy_v(ti, vol, plot=False, prt=False)
+        enti=direct.entropy(ti,0)
+        cri=direct.cv(ti,0)
+ #       enti, cri=entropy_v(ti, vol, plot=False, prt=False)
         if model==1:
            ce=einstein_fun(ti,ein_fit[0])
         else:
@@ -9195,6 +9376,128 @@ def free_kief(tt):
         
     return f_k.sum()   
 
+def freq_ac_estimation(K, Vol, nu=0.35, set_kief=False):
+    """
+    Estimation of Kieffer's frequencies for the estimation of the acoustic
+    contribution to S and Cv, by the modified Kieffer model.
+    
+    The approximation here implemented computes the shear modulus (mu) from
+    a given Poisson ratio (nu); then, secondary (vs) and primary (vp) velocities
+    of the acoustic waves are estimated from K (bulk modulus) and mu. Finally, 
+    the frequencies at the Brillouin zone boundary are computed and printed.
+    
+    Args:
+        K: bulk modulus (GPa)
+        Vol: unit cell volume of the primitive cell (A^3)
+        nu: Poisson parameter (default value 0.35)
+        set_kief: if True, The kieffer frequencies are stored for the calculation
+                  of S and Cv.
+             
+    Note:
+        Since the calculation requires the density of the crystal, the 
+        formula weight must be set by using the FWG keyword in the input.txt
+        file. 
+    """  
+    if fwg < 0.01:
+       print("Formula weight not set in the input file")
+       print("No estimation of the Kieffer frequencies")
+       return
+    
+    print("\nKieffer acoustic frequencies estimation under")
+    print("the isotropic assumption. Input data:")
+    print("Bulk Modulus:  %6.2f GPa" % K)
+    print("Poisson ratio: %6.2f" % nu)  
+    
+    mu=3*K*(1-2*nu)/(2*(1+nu))
+    rho=fwg/((1e-8)**3*Vol*avo)
+    print("Density: %6.4f g/cm^3" % rho)
+       
+    Vol=Vol*1e-30*avo   
+    K=K*1e9
+    mu=mu*1e9 
+    rho=rho*1e-3/((1e-2)**3)
+
+    vs=np.sqrt(mu/rho)
+    vp=np.sqrt((K+4.*mu/3.)/rho)
+
+    kmax=(6*avo*np.pi**2/(zu*Vol))**(1/3)
+
+    nu_p=vp*kmax/(2*np.pi*csl)
+    nu_s=vs*kmax/(2*np.pi*csl)
+    
+    mu_print=mu/1e9
+    vs_print=vs/1000.
+    vp_print=vp/1000.
+     
+    print("\nOutput:")
+    print("k_max:                 %6.4e m^-3" % kmax)
+    print("Shear modulus mu:     %6.2f GPa" % mu_print)
+    print("Vp and Vs velocities: %6.2f, %6.2f km/sec" % (vp_print, vs_print))
+    print("Frequencies:          %6.2f %6.2f %6.2f cm^-1" % (nu_p, nu_s, nu_s))
+    print("------------")
+    if set:
+       kieffer.freq(nu_p, nu_s, nu_s)
+       
+def freq_ac_exact(KV, KR, GV, GR, VMAX, Vol, set_kief=False):
+    """
+    Computation of Kieffer's frequencies for the estimation of the acoustic
+    contribution to S and Cv, by the modified Kieffer model.
+    
+    The required input data can be read from a CRYSTAL calculation of the 
+    full elastic tensor    
+    
+    Args:
+        KV, KR: Voigt and Reuss bulk moduli (GPa)
+        GV, GR: Voigt and Reuss shear moduli
+        VMAX:   maximum shear velocity
+        Vol:    unit cell volume of the primitive cell (A^3)
+        set_kief: if True, The kieffer frequencies are stored for the calculation
+                  of S and Cv (default False)
+             
+    Note:
+        Since the calculation requires the density of the crystal, the 
+        formula weight must be set by using the FWG keyword in the input.txt
+        file. 
+    """  
+    
+    if fwg < 0.01:
+       print("Formula weight not set in the input file")
+       print("No estimation of the Kieffer frequencies")
+       return
+   
+    KH=(KV+KR)*0.5*1e9
+    GH=(GV+GR)*0.5*1e9   
+    rho=fwg/((1e-8)**3*Vol*avo)
+    rho=rho*1e-3/((1e-2)**3)
+    Vol=Vol*1e-30*avo 
+    
+    vp=np.sqrt((KH+4.*GH/3.)/rho)
+    vs=np.sqrt(GH/rho)
+    VMAX=VMAX*1000
+    
+    u3=vp
+    u2=((2*vs**3*VMAX**3)/(VMAX**3+vs**3))**(1/3)
+    u1=((u2**3*VMAX**3)/(3*VMAX**3-2*u2**3))**(1/3)
+    
+    u1_p=u1/1000.
+    u2_p=u2/1000.
+    u3_p=u3/1000.
+
+    print("Computation of the frequencies of the acoustic modes for")
+    print("the application of the modified Kieffer model\n")
+    print("Velocities Vp, Vs1, Vs2: %6.4f, %6.4f, %6.4f km/sec" %\
+          (u3_p, u2_p, u1_p))
+    
+    kmax=(6*avo*np.pi**2/(zu*Vol))**(1/3)
+    
+    nu_3=u3*kmax/(2*np.pi*csl)
+    nu_2=u2*kmax/(2*np.pi*csl)
+    nu_1=u1*kmax/(2*np.pi*csl)
+    
+    print("Kieffer frequencies: %6.2f, %6.2f, %6.2f cm^-1" % (nu_3, nu_2, nu_1))
+    
+    if set_kief:
+       kieffer.freq(nu_1, nu_2, nu_3)
 
 def free_stack_t(tini, tfin, npoints):
     
@@ -9565,7 +9868,7 @@ def reset_flag():
                'lo.flag', 'flag_spline.flag', 'flag_poly.flag', 'f_fix.flag', 'verbose.flag',
                'bm4.flag', 'disp.eos_flag', 'disp.fit_vt_flag', 'static_range.flag',
                'vd.flag', 'disp.thermo_vt_flag', 'disp.error_flag','flag_fu', 'p_stat.flag',
-               'flag_cp', 'flag_alpha']
+               'flag_cp', 'flag_alpha', 'flag_fwg']
     
     for iflag in flag_list:      
         r_flag=iflag+'=False'
@@ -9598,7 +9901,7 @@ def main():
     global verbose, supercell, static_range, flag_spline, flag_poly, exclude
     global bm4, kieffer, anharm, disp, volume_correction, volume_ctrl, vd
     global path_orig, p_stat, delta_ctrl, volume_F_ctrl, latex, thermal_expansion
-    global plot, direct, zp, ac_approx,upl, upl, flag_upl
+    global plot, direct, zp, ac_approx,upl, upl, flag_upl, eosf
     
     ctime=datetime.datetime.now()
     version="2.8.1 - 18/10/2022"
@@ -9653,6 +9956,7 @@ def main():
     direct=direct_class() 
     ac_approx=acoustic_approx_class()
     upl=UploadMineral()
+    eosf=EosFit()
     
     vol_opt.on()
     alpha_opt.on()  
