@@ -1,6 +1,6 @@
 # Ab initio Elasticity and  Thermodynamics of Minerals
 #
-# Version 2.8.1 18/10/2022
+# Version 2.9.0 09/04/2025
 #
 
 # Comment the following three lines to produce the documentation 
@@ -52,6 +52,7 @@ warnings.filterwarnings('ignore')
 import_database()
 
 mpl.rcParams['figure.dpi']=80
+plt.rcParams['mathtext.fontset'] = 'stix'
 
 class latex_class():
     """
@@ -556,8 +557,9 @@ class acoustic_approx_class():
         self.nbin=4
         self.fit_flag=True
         self.disp=False
+        self.exc=True
         
-    def set(self, tmin=20., tmax=1000., deg=3, nt=12, nbin=4, on=True):
+    def set(self, tmin=20., tmax=1000., deg=3, nt=12, nbin=4, exc=True, on=True):
         """
         Sets parameters for the estimation of the vibrational pressure
         of low frequency modes, as a function of temperature
@@ -569,6 +571,8 @@ class acoustic_approx_class():
             deg: degree of the polynomial fitting the P(T) values
             nbin: number of bins for the construction of the frequency
                   histogram
+            exc: if True and if excluded modes do exist, the latter are 
+                 excluded from the pressure estimation (default True)
             on: if True, the P(T) polynomial is computed after the set
                 method was invoked, and the acoustic correction is 
                 switched on; if 'on' is False, the requested parameters are 
@@ -579,6 +583,7 @@ class acoustic_approx_class():
         self.deg=deg
         self.nt=nt
         self.nbin=nbin
+        self.exc=exc
         
         if on:
            self.on()
@@ -1564,11 +1569,18 @@ class disp_class():
             ax.set_zlabel('F(T,V)', labelpad=8)
             plt.show(block=False)
         
-    def free_vt_func(self,data,*par):
+    def free_vt_func(self, data,*par):
             
         vv=data[0]
         tt=data[1]
-
+        
+        if type(tt) is int:
+           tt=float(tt)
+           
+        if type(vv) is int:
+           vv=float(vv)
+   
+        
         nterm=self.p_list.shape[0]
         func=0.   
         for it in np.arange(nterm):
@@ -2824,7 +2836,7 @@ def read_file(data_path):
                 data_p_file=data_path+'/'+fi.readline()
                 data_p_file=data_p_file.rstrip()
                 static_e0=fi.readline().rstrip()
-                flag_p_static=os.path.isfile(data_p_file)
+                flag_p_static=os.path.isfile(data_p_file)             
                 print("\n*** INFO *** P/V static data found: use p_static") 
                 print("             function to get a BM3-EoS")
             elif l0=='VOLUME': 
@@ -7178,7 +7190,7 @@ def eos_temp(tt,prt=True,update=False,kp_only=False, save=False, \
     else:        
         plt.plot(vol_range, v_bm3(vol_range, *pterm), 'k-')
     if latex.flag:
-        plt.xlabel("V (\AA$^3$)", fontsize=fontsize)
+        plt.xlabel(r"V (\AA$^3$)", fontsize=fontsize)
         plt.ylabel("F (a.u.)", fontsize=fontsize)
         plt.xticks(fontsize=ticksize)
         plt.yticks(fontsize=ticksize)
@@ -7299,9 +7311,10 @@ def eosfit_dir(file_name, pmin=0., pmax=0., volume_max=0., unit=False, scale=0.)
     np.savetxt(file_name, eosdata, fmt="%5.3f %12.4f %8.2f", \
                header=string, comments="")
     print("\nEoSFit file %s saved" % file_name)
-                      
 
-def eosfit(file_name,**kwargs):
+                    
+
+def eosfit(file_name, unit=False, **kwargs):
     """
     Writes a PVT file to be used with EosFit
     Temperature data are in the temperature_list list
@@ -7360,15 +7373,71 @@ def eosfit(file_name,**kwargs):
             else:
                pv_i=bm3(vi,v0,k_gpa,kp)
             if pv_i>=0.:
-                pvt=np.array([pv_i, vi, itt])
-                eos_data=np.append(eos_data,pvt)
-    iraw=np.int(eos_data.size/3)
+               pv_i=pv_i[0]
+               vi=vi[0]
+               if unit:
+                  vi=vi*1e-24*avo/zu
+               pvt=np.array([pv_i, vi, itt])                              
+               eos_data=np.append(eos_data,pvt)
+    iraw=int(eos_data.size/3)
     eosdata=np.reshape(eos_data,(iraw,3))
     string='TITLE  Input prepared with Numpy script\nformat 1 P  V  T'
     np.savetxt(file_name, eosdata, fmt="%5.2f %12.4f %8.2f", \
                header=string, comments="")
     print("EoSFit file %s saved" % file_name)
     
+
+
+def eosfit_HP(file_name, phase, volmin=0., volmax=0., dvmin=10., dvmax=3., pmax=0., unit=False): 
+
+    
+    file_name=path+'/'+file_name
+    
+    if eosf.eos_t_flag:
+       eosf.info()
+       tt_list=np.linspace(eosf.tmin, eosf.tmax, eosf.nt)
+    else:   
+       if not flag_eos:
+          print("\nWarning: set of temperatures for EoSFit output not defined")
+          print("Use TEMP keyword in input file or the eosf.set_t method")
+       return
+       tt_list=temperature_list
+       
+    if (volmax < 0.01):
+       vref=eval(phase).v0
+       vmn=vref*(1-dvmin/100.)
+       vmx=vref*(1+dvmax/100.)
+       
+       volmin=volume_conversion(vmn, atojb=False, prt=False)
+       volmax=volume_conversion(vmx, atojb=False, prt=False)
+       
+       print("Volume range: %8.3f - %8.3f A^3" % (volmin, volmax))
+       
+    
+    eos_data=np.array([])
+    
+    for ti in tt_list:
+        volnew=np.linspace(volmin,volmax,12)
+        for vi in volnew:
+            vi_jb=volume_conversion(vi, prt=False)
+            pi=eval(phase).pressure_vt(ti, vi_jb)
+
+            if unit:
+               vi=vi*1e-24*avo/zu    
+   
+            if pi >=-0.02:
+               pvt=np.array([pi, vi, ti])
+               if (pmax > 0.1) & (pi <= pmax):                   
+                   eos_data=np.append(eos_data,pvt)
+               elif pmax < 0.1:
+                    eos_data=np.append(eos_data,pvt)
+    
+    iraw=int(eos_data.size/3)
+    eosdata=np.reshape(eos_data,(iraw,3))
+    string='TITLE  Input prepared with Numpy script\nformat 1 P  V  T'
+    np.savetxt(file_name, eosdata, fmt="%5.3f %12.4f %8.2f", \
+               header=string, comments="")
+    print("\nEoSFit file %s saved" % file_name)      
 
 
 def new_volume(tt,pr,**kwargs):
@@ -7631,7 +7700,7 @@ def check_spline(ifr, save=False, title=True, tex=False):
     plt.plot(vol,freq,"k-")
     plt.plot(data_vol_freq,ifl,"k*")
     if latex.flag:
-        plt.xlabel("Volume (\AA$^3$)", fontsize=fontsize)
+        plt.xlabel(r"Volume (\AA$^3$)", fontsize=fontsize)
         plt.ylabel("Frequency (cm$^{-1}$)", fontsize=fontsize)
         plt.xticks(fontsize=ticksize)
         plt.yticks(fontsize=ticksize)
@@ -7646,6 +7715,110 @@ def check_spline(ifr, save=False, title=True, tex=False):
         print("Figure saved as %s" % filename)
     plt.show(block=False)
     latex.off()
+    
+
+def frequency_v(ifr, save=False, title=True, tex=False, out=False):
+    """
+    Plots the frequencies of a given normal mode as a function of V
+    and returns the fit of V/V0 as a function of the frequency shifts
+    with respect to the frequency value at V0 (f0).
+    
+    V0 is estimated by the volume_dir function at P=0. GPa and T=298.15K;
+    f0 and the frequencies at variable cell volumes are from the polynomial
+    fits with parameters derived from the input file (POLY keyword).
+    
+    Args: 
+        ifr: mode number
+        save, title, tex: are the same parameters as for function check_poly
+        out: if True, the fitting parameters for 1-degree and 2-degree fits
+             are returned
+    """
+    
+    if not flag_poly.flag:
+        print("Polynomial fit not active: use set_poly")
+        return
+    
+    pol_stack=flag_poly.pol_stack
+    vol=np.linspace(min(data_vol_freq),max(data_vol_freq),pr.nvol)
+    freq=np.polyval(pol_stack[ifr],vol)
+    ifl=[]
+    for ivol in int_set:
+       ifl=np.append(ifl,lo.data_freq[ifr,ivol+1])
+       
+    dpi=80
+    ext='png'
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ext=latex.get_ext()
+       ticksize=latex.get_tsize()
+       
+    plt.figure()
+    leg="Mode number "+str(ifr)
+    if ifr in exclude.ex_mode:
+        leg=leg+"\n Excluded from free energy computation"
+    plt.plot(vol,freq,"k-")
+    plt.plot(data_vol_freq,ifl,"k*")
+    if latex.flag:
+       plt.xlabel(r"Volume (\AA$^3$)", fontsize=fontsize)
+       plt.ylabel("Frequency (cm$^{-1}$)", fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+    else:
+        plt.xlabel("Volume (A^3)")
+        plt.ylabel("Frequency (cm^{-1})") 
+    if title:
+       plt.title(leg)
+    if save:
+        filename=path + '/mode_' + str(ifr) + '.' + ext
+        plt.savefig(filename, dpi=dpi, bbox_inches='tight')
+        print("Figure saved as %s" % filename)
+    plt.show(block=False)
+    latex.off()
+    
+    vol0=volume_dir(298.15, 0)
+    
+    rv=vol/vol0
+    freq0=np.polyval(flag_poly.pol_stack[ifr], vol0)
+    shift_freq=freq-freq0
+    
+    refit1=np.polyfit(shift_freq,rv, 1)
+    refit2=np.polyfit(shift_freq,rv, 2)
+    
+    print("\nReference Volume: %8.3f A^3    " % vol0)
+    print("Reference Frequency: %8.3f cm^-1" % freq0)
+
+    print("\n1-degree fit: V/V0 = %7.5f*shift + %5.3f" % (refit1[0], refit1[1]))
+    print("2-degree fit: V/V0 = %8.4e*shift^2 + %7.5f*shift + %5.3f" % \
+          (refit2[0], refit2[1], refit2[2]))  
+        
+    if out:
+       return refit1, refit2
+   
+def V_ratio_from_shift(ifr, shift):
+    """
+    Computes the V/V0 ratio from the frequency shift of a given normal mode,
+    where V0 is the reference cell volume at which the mode has the 
+    frequency f0; V is the cell volume at which the same mode has the 
+    frequency f0 + shift.
+    
+    The function calls the frequency_v function to get the parameters
+    for the fits V/V0 vs shift
+    
+    Args:
+        ifr: mode number
+        shift: value of the frequency shift (cm^-1)
+    """
+    
+    fit1, fit2=frequency_v(ifr, out=True)
+    rv1=np.polyval(fit1, shift)
+    rv2=np.polyval(fit2, shift)
+    
+    print("\nV/V0 ratio from linear fit:    %5.3f" % rv1)
+    print("V/V0 ratio from quadratic fit: %5.3f" % rv2)
+    
+    
     
 def check_poly(ifr, save=False, title=True, tex=False):
     """
@@ -7685,7 +7858,7 @@ def check_poly(ifr, save=False, title=True, tex=False):
     plt.plot(vol,freq,"k-")
     plt.plot(data_vol_freq,ifl,"k*")
     if latex.flag:
-       plt.xlabel("Volume (\AA$^3$)", fontsize=fontsize)
+       plt.xlabel(r"Volume ($\mathrm{\AA}^3$)", fontsize=fontsize, fontname='STIXGeneral')
        plt.ylabel("Frequency (cm$^{-1}$)", fontsize=fontsize)
        plt.xticks(fontsize=ticksize)
        plt.yticks(fontsize=ticksize)
@@ -7749,7 +7922,7 @@ def mode_crossing(modes, title=True, tex=False, save=False, dpi=80, ext='png'):
         plt.plot(data_vol_freq,ifl,"k*")
         
     if latex.flag:
-       plt.xlabel("Volume (\AA$^3$)", fontsize=fontsize)
+       plt.xlabel(r"Volume (\AA$^3$)", fontsize=fontsize)
        plt.ylabel("Frequency (cm$^{-1}$)", fontsize=fontsize)
        plt.xticks(fontsize=ticksize)
        plt.yticks(fontsize=ticksize)
@@ -7765,6 +7938,90 @@ def mode_crossing(modes, title=True, tex=False, save=False, dpi=80, ext='png'):
             
     plt.show(block=False)
     
+
+def mode_crossing_p(modes, temperature, title=True, 
+                    tex=False, save=False, dpi=80, ext='png', fmin=0., fmax=0.):
+    """
+    Plot of the frequencies of modes as a function of total pressure in the same plot.
+    Useful to check for modes crossing.
+    
+    Args:
+        modes: list of modes to be plotted
+        temperature: temperature for the calculation of the total pressure
+                     at each volume
+        title: if True, a title is shown
+        save: if True, the plot is saved in the file 'crossing_modes'
+        ext: extension of the file (relevant if save is True)
+        dpi: resolution of the saved plot (relevant if save=True)
+        tex: latex plotting
+        fmin, fmax: if not zeros, modifies the frequency range for plotting
+        
+    Note:
+        if tex is True, dpi and ext parameters are overwritten by those
+        requested by the latex class
+    """
+    pol_stack=flag_poly.pol_stack
+    vol=np.linspace(min(data_vol_freq),max(data_vol_freq),pr.nvol)
+    
+    p_vol=np.array([])
+    data_p_vol=np.array([])
+    for ivol in vol:
+        ipres=pressure_dir(temperature, ivol)
+        p_vol=np.append(p_vol, ipres)
+        
+        
+    for ivol in data_vol_freq:
+        ipres=pressure_dir(temperature, ivol)
+        data_p_vol=np.append(data_p_vol, ipres)
+    
+    if tex:
+       latex.on()
+       dpi=latex.get_dpi()
+       fontsize=latex.get_fontsize()
+       ext=latex.get_ext()
+       ticksize=latex.get_tsize()
+       
+    leg="Modes N.: "
+    lnm=len(modes)
+    
+    for iq in range(lnm-1):
+        leg=leg + str(modes[iq]) + ", "
+        
+    leg=leg+str(modes[lnm-1])
+    
+    print("\nPlot of the frequencies of the modes ", modes)
+    plt.figure()
+    for ifr in modes:
+        freq=np.polyval(pol_stack[ifr],vol)
+        ifl=[]
+        
+        for ivol in int_set:
+            ifl=np.append(ifl,lo.data_freq[ifr,ivol+1])  
+            
+        plt.plot(p_vol,freq,"k-")
+        plt.plot(data_p_vol,ifl,"k*")
+        
+        plt.xlim(0.)
+        if fmin > 0.001 or fmax > 0.001:
+           plt.ylim(fmin, fmax)
+        
+    if latex.flag:
+       plt.xlabel(r"Pressure (GPa)", fontsize=fontsize)
+       plt.ylabel("Frequency (cm$^{-1}$)", fontsize=fontsize)
+       plt.xticks(fontsize=ticksize)
+       plt.yticks(fontsize=ticksize)
+    else:
+       plt.xlabel("Pressure (GPa)")
+       plt.ylabel("Frequency (cm^-1)")
+    if title:
+       plt.title(leg)
+    if save:
+       filename=path+'/crossing_modes_p' + '.' + ext
+       plt.savefig(filename, dpi=dpi, bbox_inches='tight')
+       print("Figure saved as %s" % filename)
+            
+    plt.show(block=False)
+
     
 def frequency_p_range(ifr, pmin, pmax, npoint, out=False, dir=False, temp=298.15, degree=1, \
                       title=True, tex=False, save=False, fit_out=False):
@@ -7981,12 +8238,17 @@ def frequency_t_range(ifr, tmin, tmax, npoint, dir=False, pressure=0., degree=1,
     
     print(fit_str)
     
-def frequency_temperature(mode_list, temp_list, pres=0):
+def frequency_temperature(mode_list, temp_list, pres=0, prt=False):
+    
+    if len(temp_list) > 1:
+       prt=True
 
     vol_t=np.array([])
     for it in temp_list:
         iv=volume_dir(it, pres)
         vol_t=np.append(vol_t, iv)
+    
+    f_array=np.array([])
     
     for iq in mode_list:
         f_list=np.array([])
@@ -7997,8 +8259,16 @@ def frequency_temperature(mode_list, temp_list, pres=0):
         for idf in f_list:    
             p='{:6.1f}'.format(idf) 
             plist.append(float(p))
-        print(plist)
-            
+        
+        if prt:    
+           print(plist)
+       
+        if not prt:
+           f_array=np.append(f_array, float(p))
+               
+    if not prt:
+       return f_array        
+        
 def check_spline_total():
     """
     Plots the frequencies of all the modes as a function of
@@ -8095,7 +8365,7 @@ def pressure_freq_list(tt,ifr,**kwargs):
         
     return freq_list, p_list
 
-def pressure_freq(ifr,freq,tt,degree=4,**kwargs):
+def pressure_freq(ifr,freq,tt,degree=4, shift=0., **kwargs):
     """
     Computes the pressure given the frequency of a normal mode, at a fixed
     temperature.
@@ -8106,6 +8376,13 @@ def pressure_freq(ifr,freq,tt,degree=4,**kwargs):
         tt:                temperature
         degree (optional): degree of the polynomial fitting the P/freq
                            values from the pressure_freq_list function
+        shift:             if not equal to 0., this is the frequency
+                           shift from the reference at pressure 0,
+                           as measured in a Raman experiment. In this 
+                           case, the value of freq is ignored
+                           (and it is recomputed as the sum of the
+                            frequency value at 0 pressure and the 
+                            shift). Default 0.
         
     Keyword Args: 
         fix: Kp fixed, if fix=Kp > 0.1
@@ -8141,8 +8418,12 @@ def pressure_freq(ifr,freq,tt,degree=4,**kwargs):
     plt.plot(freq_list, p_list,"k*")
     plt.ylabel("P (GPa)")
     plt.xlabel("Freq (cm^-1)")
-    
+        
     f_opt=np.polyfit(freq_list,p_list,deg=degree)
+    
+    if shift > 0.01:
+       freq=shift+freq_poly_p(ifr, tt, prt=False)[0]
+    
     pres_f=np.polyval(f_opt,freq)
     
     plt.plot(freq_list, p_list,"k-")
@@ -8402,12 +8683,10 @@ def q_parameter(pfin=5., temp=298.15, npoint=12, dir=False):
     p_list=np.linspace(0., pfin, npoint)
     res=list(gruneisen_therm(temp, ip, ex_data=True, dir=dir, prt=False) for ip in p_list)
     res=np.array(res)
-    v_list=res[:,0]
-    if not dir:
-       gr_list=res[:,4]
-    else:
-       gr_list=res[:,3]
     
+    v_list=res[:,0]
+    gr_list=res[:,4]
+             
     r_gr=gr_list/gr_list[0]
     r_v=v_list/v_list[0]
     
@@ -8740,17 +9019,18 @@ def pressure_phonon_f_range(tt, pp=0, prt=True):
     p_total=np.array([])
     freq=np.array([])
     
+    exc=ac_approx.exc
+    nbin=ac_approx.nbin
+    
     modes=int_mode
-    if exclude.flag:
+    if exclude.flag and exc:
        modes=np.setdiff1d(int_mode, exclude.ex_mode)
     
     size=np.size(modes)
-        
-    nbin=ac_approx.nbin
     
     pres_f=np.ndarray((nbin,), dtype=object)
     
-    for ifr in range(size):
+    for ifr in modes:
         ifreq=freq_v_fun(ifr, vol)
         freq=np.append(freq, ifreq)
     
@@ -8773,10 +9053,10 @@ def pressure_phonon_f_range(tt, pp=0, prt=True):
            pres_f[ipos].fmax=np.max(pres_f[ipos].f_list)
          
      
-    for ifr in range(size):    
+    for ifr in range(size):
         i_pressure, _ = pressure_phonon_mode(ifr,tt,vol)
         i_pos=dist[ifr]-1
-        pres_f[i_pos].p=pres_f[i_pos].p+i_pressure 
+        pres_f[i_pos].p=pres_f[i_pos].p+i_pressure
         
     for ipos in range(nbin):
         pres_f[ipos].ppm=0.
